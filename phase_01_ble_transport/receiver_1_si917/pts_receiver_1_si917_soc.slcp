@@ -1,0 +1,77 @@
+project_name: pts_receiver_1_si917_soc
+package: ble
+quality: evaluation
+label: PTS Phase1 Receiver 1 Si917 (SoC)
+category: Example|BLE
+description: |
+  Precision Time Sync POC Phase 1 — Si917 Periodic Advertising receiver 1.
+  Based on WiSeConnect ble_ae_central with seq/RSSI/miss logging and debug GPIO.
+filter:
+- name: Wireless Technology
+  value:
+  - BLE
+- name: Project Difficulty
+  value:
+  - Advanced
+sdk:
+  id: simplicity_sdk
+  version: "2025.6.1"
+sdk_extension:
+- id: wiseconnect3_sdk
+  version: 3.5.2
+source:
+- path: app.c
+- path: ../common/pts_debug_gpio.c
+include:
+- path: .
+  file_list:
+  - path: app.h
+  - path: ble_config.h
+- path: ../common
+  file_list:
+  - path: pts_sync_protocol.h
+  - path: pts_debug_gpio.h
+define:
+- name: SL_SI91X_PRINT_DBG_LOG
+- name: PTS_RX_BOARD_ID
+  value: 1
+component:
+- id: sl_main
+- id: freertos
+- id: freertos_heap_4
+- id: syscalls
+  from: wiseconnect3_sdk
+- id: si91x_memory_default_config
+  from: wiseconnect3_sdk
+- id: wiseconnect3_common
+  from: wiseconnect3_sdk
+- id: wifi
+  from: wiseconnect3_sdk
+- id: sl_si91x_internal_stack
+  from: wiseconnect3_sdk
+- id: wifi_resources
+  from: wiseconnect3_sdk
+- id: network_manager
+  from: wiseconnect3_sdk
+- id: basic_network_config_manager
+  from: wiseconnect3_sdk
+- id: ble
+  from: wiseconnect3_sdk
+- id: sl_si91x_basic_buffers
+  from: wiseconnect3_sdk
+- id: sl_gpio
+  from: wiseconnect3_sdk
+toolchain_settings:
+  - option: gcc_compiler_option
+    value: -Wall -Werror
+configuration:
+- name: SL_BOARD_ENABLE_VCOM
+  value: '1'
+readme:
+- path: README.md
+ui_hints:
+  highlight:
+  - path: README.md
+    focus: true
+post_build:
+  path: ../../../../utilities/postbuild_profile/wiseconnect_soc.slpb
