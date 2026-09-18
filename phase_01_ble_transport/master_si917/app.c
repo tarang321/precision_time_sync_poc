@@ -51,8 +51,8 @@
 #include "rsi_common_apis.h"
 
 #define RSI_BLE_LOCAL_NAME  PTS_MASTER_LOCAL_NAME
-#define BLE_AE_ADV_DATA     "PTS_MASTER_EXT"
-#define BLE_AE_ADV_DATA_LEN PTS_SYNC_PAYLOAD_LEN
+#define BLE_AE_ADV_DATA     "PTS_MASTER"
+#define BLE_AE_ADV_DATA_LEN 0x19
 #define RSI_SEL_ANTENNA     RSI_SEL_INTERNAL_ANTENNA //RSI_SEL_EXTERNAL_ANTENNA
 #define RSI_SCAN_RESP_DATA  "PTS_MASTER"
 #define ADV_SET2            0 /* Phase 1: single AE set + periodic train */
@@ -67,6 +67,8 @@
 static uint32_t g_pts_seq;
 static uint8_t g_pts_periodic_payload[PTS_SYNC_PAYLOAD_LEN];
 static osTimerId_t g_pts_seq_timer;
+
+static void rsi_ble_app_set_event(uint32_t event_num);
 
 static void pts_master_build_payload(void)
 {
