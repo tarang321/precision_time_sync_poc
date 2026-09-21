@@ -14,8 +14,12 @@ precision_time_sync_poc/
     common/
     receiver_si917/
     bg24_capture/
-  phase_03_trigger_followup/       # stub
-  phase_04_logical_network_time/   # stub
+  phase_03_trigger_followup/       # active — trigger + follow-up M[N] <-> R[N]
+    common/
+    master_si917/
+    receiver_si917/
+    bg24_capture/
+  phase_04_logical_network_time/  # active — BG24 offset + rate network time
   phase_05_scheduled_gpio/         # stub
   phase_06_wifi_commands/          # stub
   phase_07_stress_validation/      # stub
@@ -74,8 +78,8 @@ Path: Si917 AE callback GPIO pulse → BG24 async PRS → TIMER0 capture `R` →
 
 | Phase | Folder | Roadmap focus |
 |-------|--------|---------------|
-| 3 | `phase_03_trigger_followup` | Section 5.2 trigger + follow-up `M[N]` ↔ `R[N]` |
-| 4 | `phase_04_logical_network_time` | Section 5.3 logical network time on BG24 |
+| 3 | `phase_03_trigger_followup` | Section 5.2 trigger + follow-up `M[N]` ↔ `R[N]` — see that folder's README |
+| 4 | `phase_04_logical_network_time` | Section 5.3 logical network time on BG24 — see that folder's README |
 | 5 | `phase_05_scheduled_gpio` | Future-timestamp hardware GPIO execution |
 | 6 | `phase_06_wifi_commands` | Wi-Fi command transport; BLE keeps time |
 | 7 | `phase_07_stress_validation` | Drift, loss, restart, coexistence; skew &lt; 200 µs |

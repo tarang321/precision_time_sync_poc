@@ -1,0 +1,84 @@
+# Silicon Labs Project Configuration Tools: slcp, v0, Component selection file.
+project_name: pts_bg24_network_time
+label: PTS Phase4 BG24 logical network time
+description: |
+  Precision Time Sync POC Phase 3 — BG24 keeps Phase 2 PRS capture and
+  matches follow-up master timestamp M[N] to stored R[N].
+category: Example|Platform
+package: platform
+quality: evaluation
+readme:
+- path: README.md
+source:
+- path: app.c
+- path: pts_prs_timer_capture.c
+- path: pts_host_rx.c
+- path: pts_network_time.c
+include:
+- path: .
+  file_list:
+  - path: app.h
+  - path: pts_prs_timer_capture.h
+  - path: pts_host_rx.h
+  - path: pts_network_time.h
+- path: ../common
+  file_list:
+  - path: pts_followup_protocol.h
+sdk:
+  vendor: silabs
+  id: simplicity_sdk
+  version: 2026.6.0
+toolchain_settings: [
+  ]
+component:
+- package: simplicity_sdk
+  vendor: silabs
+  id: EFR32MG24B220F1536IM48
+- package: simplicity_sdk
+  vendor: silabs
+  id: brd4002a
+- package: simplicity_sdk
+  vendor: silabs
+  id: brd4187c
+- package: simplicity_sdk
+  vendor: silabs
+  id: clock_manager
+- package: simplicity_sdk
+  vendor: silabs
+  id: device_init
+- package: simplicity_sdk
+  vendor: silabs
+  id: emlib_gpio
+- package: simplicity_sdk
+  vendor: silabs
+  id: emlib_prs
+- package: simplicity_sdk
+  vendor: silabs
+  id: emlib_timer
+- package: simplicity_sdk
+  vendor: silabs
+  id: emlib_usart
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream_recommended_stream
+- package: simplicity_sdk
+  instance:
+  - vcom
+  vendor: silabs
+  id: iostream_eusart
+- package: simplicity_sdk
+  vendor: silabs
+  id: sl_main
+- package: simplicity_sdk
+  vendor: silabs
+  id: sleeptimer
+configuration:
+- name: SL_BOARD_ENABLE_VCOM
+  value: '1'
+ui_hints:
+  highlight:
+  - path: README.md
+    focus: true
