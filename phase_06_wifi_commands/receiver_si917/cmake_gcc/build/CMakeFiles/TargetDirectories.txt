@@ -1,0 +1,4 @@
+C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_06_wifi_commands/receiver_si917/cmake_gcc/build/CMakeFiles/slc.dir
+C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_06_wifi_commands/receiver_si917/cmake_gcc/build/CMakeFiles/pts_receiver_si917_p6.dir
+C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_06_wifi_commands/receiver_si917/cmake_gcc/build/CMakeFiles/edit_cache.dir
+C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_06_wifi_commands/receiver_si917/cmake_gcc/build/CMakeFiles/rebuild_cache.dir

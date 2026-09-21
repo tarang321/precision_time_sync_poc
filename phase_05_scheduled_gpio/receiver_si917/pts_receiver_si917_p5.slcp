@@ -1,0 +1,73 @@
+project_name: pts_receiver_si917_p5
+package: bluetooth_le_siwx91x_app
+quality: evaluation
+label: PTS Phase5 Receiver Si917 (SoC)
+category: Example|BLE
+description: |
+  Precision Time Sync POC Phase 3 — Si917 receiver pulses the event GPIO
+  and forwards trigger seq plus follow-up M to BG24.
+source:
+- path: app.c
+- path: ../common/pts_event_gpio.c
+- path: ../common/pts_host_tx.c
+include:
+- path: .
+  file_list:
+  - path: app.h
+  - path: ble_config.h
+- path: ../common
+  file_list:
+  - path: pts_event_gpio.h
+  - path: pts_host_tx.h
+  - path: pts_followup_protocol.h
+  - path: pts_sync_protocol.h
+define:
+- name: SL_SI91X_PRINT_DBG_LOG
+- name: PTS_RX_BOARD_ID
+  value: 1
+component:
+- id: sl_main
+- id: freertos
+- id: freertos_heap_4
+- id: syscalls
+- id: si91x_memory_default_config
+- id: wiseconnect_common
+- id: wifi
+- id: sl_si91x_internal_stack
+- id: wifi_resources
+- id: network_manager
+- id: basic_network_config_manager
+- id: ble
+- id: log_none
+- id: si91x_log
+- id: si91x_log_iostream_formatted
+- id: iostream_si91x
+- id: iostream_uart_si91x
+  instance:
+  - vcom
+- id: sl_gpio
+- id: brd4338a
+toolchain_settings:
+- option: gcc_compiler_option
+  value: -Wall -Werror -Wno-error=deprecated-declarations
+- option: llvm_compiler_option
+  value: -Wall -Werror -Wno-error=deprecated-declarations
+configuration:
+- name: SL_BOARD_ENABLE_VCOM
+  value: '1'
+readme:
+- path: README.md
+ui_hints:
+  highlight:
+  - path: README.md
+    focus: true
+post_build:
+  profile: wiseconnect_soc
+sdk_extension:
+- id: wiseconnect3_sdk
+  vendor: silabs
+  version: 4.1.0
+sdk:
+  id: simplicity_sdk
+  vendor: silabs
+  version: 2026.6.0
