@@ -6,11 +6,14 @@ Phase-first layout for the BLE time-sync proof of concept. Design source: [BLE_T
 
 ```text
 precision_time_sync_poc/
-  phase_01_ble_transport/          # active — BLE Periodic Adv transport
+  phase_01_ble_transport/          # BLE Periodic Adv transport
     master_si917/
     receiver_1_si917/
     receiver_2_si917/
-  phase_02_si917_bg24_event_ref/   # stub
+  phase_02_si917_bg24_event_ref/   # active — Si917 GPIO → BG24 PRS R[N]
+    common/
+    receiver_si917/
+    bg24_capture/
   phase_03_trigger_followup/       # stub
   phase_04_logical_network_time/   # stub
   phase_05_scheduled_gpio/         # stub
@@ -18,7 +21,7 @@ precision_time_sync_poc/
   phase_07_stress_validation/      # stub
 ```
 
-Phase 1 boards are three Si917s (1 master + 2 receivers). BG24 work starts in Phase 2.
+Phase 1 boards are three Si917s (1 master + 2 receivers). Phase 2 adds BG24 capture beside a Si917 receiver.
 
 ## Phase 1 — BLE synchronization transport
 
@@ -36,7 +39,7 @@ Shared: `phase_01_ble_transport/common/` (payload + debug GPIO).
 
 - Examples index: https://docs.silabs.com/wiseconnect/latest/wiseconnect-examples/
 - AE APIs: https://docs.silabs.com/wiseconnect/latest/wiseconnect-api-reference-guide-ble/bt-low-energy1
-- Build notes: [phase_01_ble_transport/IMPORT.md](phase_01_ble_transport/IMPORT.md)
+- Build notes and references: [phase_01_ble_transport/IMPORT.md](phase_01_ble_transport/IMPORT.md)
 
 ### Exit criteria
 
@@ -46,13 +49,31 @@ Shared: `phase_01_ble_transport/common/` (payload + debug GPIO).
 - [ ] Debug GPIO toggled on each sync reception (both RX boards)
 - [ ] Logic-analyzer skew between RX GPIO edges recorded (callback baseline)
 
-Open item (Phase 2): Si917 controller-level BLE TX/RX timestamps / radio-event GPIO.
+## Phase 2 — Si917-to-BG24 BLE event reference
+
+**Goal:** Hardware-capture `R[N]` on BG24 from Si917 event GPIO; associate delayed host identity frames with captures.
+
+Details and references: [phase_02_si917_bg24_event_ref/README.md](phase_02_si917_bg24_event_ref/README.md).
+
+| Role | Project |
+|------|---------|
+| Master (reuse P1) | `phase_01_ble_transport/master_si917/` |
+| Receiver Si917 | `phase_02_si917_bg24_event_ref/receiver_si917/pts_receiver_si917_p2.slcp` |
+| BG24 capture | `phase_02_si917_bg24_event_ref/bg24_capture/pts_bg24_capture.slcp` |
+
+Path: Si917 AE callback GPIO pulse → BG24 async PRS → TIMER0 capture `R` → later `PTS2` UART frame binds `seq`.
+
+### Exit criteria
+
+- [ ] Event GPIO rising edge on each Periodic Adv report
+- [ ] BG24 records `R` in TIMER ISR (independent of UART latency)
+- [ ] Logs show `seq` ↔ `R` pairs
+- [ ] Confirmed: no Si917 controller RX timestamp / GPIO timestamp HW (callback edge is best available)
 
 ## Later phases (stubs only)
 
 | Phase | Folder | Roadmap focus |
 |-------|--------|---------------|
-| 2 | `phase_02_si917_bg24_event_ref` | Si917 GPIO edge → BG24 PRS timer capture `R[N]` |
 | 3 | `phase_03_trigger_followup` | Section 5.2 trigger + follow-up `M[N]` ↔ `R[N]` |
 | 4 | `phase_04_logical_network_time` | Section 5.3 logical network time on BG24 |
 | 5 | `phase_05_scheduled_gpio` | Future-timestamp hardware GPIO execution |

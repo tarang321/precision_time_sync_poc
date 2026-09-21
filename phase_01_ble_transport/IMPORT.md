@@ -58,3 +58,16 @@ Base examples: [ble_ae_peripheral](https://github.com/SiliconLabs/wiseconnect/tr
 | `PTS_PERIODIC_INTERVAL_*` | same | Periodic interval (1.25 ms units) |
 | `PTS_DEBUG_GPIO_*` | `pts_debug_gpio.c` | LA probe pin (default GPIO6) |
 | `PTS_RX_BOARD_ID` | RX `.slcp` | Log tag 1 vs 2 |
+
+## References
+
+| Used for | Reference |
+|----------|-----------|
+| Phase 1 behavior (Periodic Adv train, callback GPIO, LA skew) | [BLE_Time_Synchronization_POC_Roadmap(2).md](../BLE_Time_Synchronization_POC_Roadmap(2).md) Phase 1 |
+| Master app | [ble_ae_peripheral](https://github.com/SiliconLabs/wiseconnect/tree/master/examples/snippets/ble/ble_ae_peripheral) |
+| Receiver apps | [ble_ae_central](https://github.com/SiliconLabs/wiseconnect/tree/master/examples/snippets/ble/ble_ae_central) |
+| Example index | [WiSeConnect examples](https://docs.silabs.com/wiseconnect/latest/wiseconnect-examples/) |
+| AE APIs (`rsi_ble_set_ae_*`, `rsi_ble_ae_set_periodic_sync`, report callback) | [BLE API guide](https://docs.silabs.com/wiseconnect/latest/wiseconnect-api-reference-guide-ble/bt-low-energy1) |
+| Debug GPIO (`sl_gpio_driver_toggle_pin`) | [sl_si91x_gpio_example](https://github.com/SiliconLabs/wiseconnect/tree/master/examples/si91x_soc/peripheral/sl_si91x_gpio_example) |
+
+SDK pins in the three `.slcp` files: WiSeConnect 4.1.0, Simplicity SDK 2026.6.0. The dependency table above still lists the older 3.5.2 / 2025.6.1 pair from the first import.
