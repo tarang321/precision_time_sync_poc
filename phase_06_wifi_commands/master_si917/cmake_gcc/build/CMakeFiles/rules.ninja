@@ -55,7 +55,7 @@ rule RERUN_CMAKE
 # Rule for cleaning all built files.
 
 rule CLEAN
-  command = C:\Users\tasrivas\.silabs\slt\installs\conan\p\ninja1a38fc85adcf7\p\ninja $FILE_ARG -t clean $TARGETS
+  command = C:\Users\tasrivas\.silabs\slt\installs\conan\p\ninja1a38fc85adcf7\p\ninja.exe $FILE_ARG -t clean $TARGETS
   description = Cleaning all built files...
 
 
@@ -63,6 +63,6 @@ rule CLEAN
 # Rule for printing all primary targets available.
 
 rule HELP
-  command = C:\Users\tasrivas\.silabs\slt\installs\conan\p\ninja1a38fc85adcf7\p\ninja -t targets
+  command = C:\Users\tasrivas\.silabs\slt\installs\conan\p\ninja1a38fc85adcf7\p\ninja.exe -t targets
   description = All primary targets available:
 

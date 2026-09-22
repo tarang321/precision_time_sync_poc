@@ -135,8 +135,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qforfo"
-      binary: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qforfo"
+      source: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-tjz4ei"
+      binary: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-tjz4ei"
     cmakeVariables:
       CMAKE_C_FLAGS: ""
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -145,10 +145,10 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qforfo'
+        Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-tjz4ei'
         
-        Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja -v cmTC_598de
-        [1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc.exe @CMakeFiles\\cmTC_598de.dir\\Debug\\CMakeCCompilerABI.c.obj.rsp -o CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c
+        Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja.exe -v cmTC_dde79
+        [1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc.exe @CMakeFiles\\cmTC_dde79.dir\\Debug\\CMakeCCompilerABI.c.obj.rsp -o CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c
         Using built-in specs.
         COLLECT_GCC=C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc.exe
         Target: arm-none-eabi
@@ -156,8 +156,8 @@ events:
         Thread model: single
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20241119 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) 
-        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_598de.dir/Debug/'
-         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_598de.dir/Debug/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -std=c17 -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\cc50tYFF.s
+        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_dde79.dir/Debug/'
+         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_dde79.dir/Debug/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -std=c17 -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccKIx0bd.s
         GNU C17 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) version 14.2.1 20241119 (arm-none-eabi)
         	compiled by GNU C version 9.3-win32 20200320, GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-1-g835ea3a-GMP
         
@@ -174,13 +174,13 @@ events:
          C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/include
         End of search list.
         Compiler executable checksum: ba3b2c2dbf96eeda95f984eb189d807d
-        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_598de.dir/Debug/'
-         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\cc50tYFF.s
+        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_dde79.dir/Debug/'
+         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccKIx0bd.s
         GNU assembler version 2.43.1 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) 2.43.1.20241119
         COMPILER_PATH=C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/
         LIBRARY_PATH=C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi/lib/\x0d
-        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.'\x0d
-        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_598de.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_598de.a  @CMakeFiles\\cmTC_598de.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_598de.a && cd ."
+        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.'\x0d
+        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_dde79.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_dde79.a  @CMakeFiles\\cmTC_dde79.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_dde79.a && cd ."
         
       exitCode: 0
   -
@@ -213,10 +213,10 @@ events:
       Parsed C implicit link information:
         link line regex: [^( *|.*[/\\])(arm-none-eabi-gcc\\.exe|;ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(arm-none-eabi-gcc\\.exe|;ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
-        ignore line: [Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qforfo']
+        ignore line: [Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-tjz4ei']
         ignore line: []
-        ignore line: [Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja -v cmTC_598de]
-        ignore line: [[1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc.exe @CMakeFiles\\cmTC_598de.dir\\Debug\\CMakeCCompilerABI.c.obj.rsp -o CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c]
+        ignore line: [Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja.exe -v cmTC_dde79]
+        ignore line: [[1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc.exe @CMakeFiles\\cmTC_dde79.dir\\Debug\\CMakeCCompilerABI.c.obj.rsp -o CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc.exe]
         ignore line: [Target: arm-none-eabi]
@@ -224,8 +224,8 @@ events:
         ignore line: [Thread model: single]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20241119 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_598de.dir/Debug/']
-        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_598de.dir/Debug/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -std=c17 -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\cc50tYFF.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_dde79.dir/Debug/']
+        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_dde79.dir/Debug/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -std=c17 -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccKIx0bd.s]
         ignore line: [GNU C17 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) version 14.2.1 20241119 (arm-none-eabi)]
         ignore line: [	compiled by GNU C version 9.3-win32 20200320  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-1-g835ea3a-GMP]
         ignore line: []
@@ -242,8 +242,8 @@ events:
         ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: ba3b2c2dbf96eeda95f984eb189d807d]
-        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_598de.dir/Debug/']
-        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\cc50tYFF.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_dde79.dir/Debug/']
+        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccKIx0bd.s]
         ignore line: [GNU assembler version 2.43.1 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) 2.43.1.20241119]
         ignore line: [COMPILER_PATH=C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/]
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/]
@@ -252,8 +252,8 @@ events:
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/]
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/]
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi/lib/\x0d]
-        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_598de.dir/Debug/CMakeCCompilerABI.c.'\x0d]
-        ignore line: [[2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_598de.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_598de.a  @CMakeFiles\\cmTC_598de.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_598de.a && cd ."]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-std=c17' '-v' '-o' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_dde79.dir/Debug/CMakeCCompilerABI.c.'\x0d]
+        ignore line: [[2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_dde79.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_dde79.a  @CMakeFiles\\cmTC_dde79.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_dde79.a && cd ."]
         ignore line: []
         ignore line: []
         linker tool for 'C': [1/2] C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/arm-none-eabi-gcc.exe
@@ -302,8 +302,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qdkb4o"
-      binary: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qdkb4o"
+      source: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-0ykk9n"
+      binary: "C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-0ykk9n"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -313,10 +313,10 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qdkb4o'
+        Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-0ykk9n'
         
-        Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja -v cmTC_4f544
-        [1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-g++.exe @CMakeFiles\\cmTC_4f544.dir\\Debug\\CMakeCXXCompilerABI.cpp.obj.rsp -o CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp
+        Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja.exe -v cmTC_2ef99
+        [1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-g++.exe @CMakeFiles\\cmTC_2ef99.dir\\Debug\\CMakeCXXCompilerABI.cpp.obj.rsp -o CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp
         Using built-in specs.
         COLLECT_GCC=C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-g++.exe
         Target: arm-none-eabi
@@ -324,8 +324,8 @@ events:
         Thread model: single
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20241119 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) 
-        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_4f544.dir/Debug/'
-         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1plus.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_4f544.dir/Debug/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccj1AB7H.s
+        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_2ef99.dir/Debug/'
+         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1plus.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_2ef99.dir/Debug/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccV9w32j.s
         GNU C++17 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) version 14.2.1 20241119 (arm-none-eabi)
         	compiled by GNU C version 9.3-win32 20200320, GMP version 6.2.1, MPFR version 3.1.6, MPC version 1.0.3, isl version isl-0.15-1-g835ea3a-GMP
         
@@ -348,13 +348,13 @@ events:
          C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/include
         End of search list.
         Compiler executable checksum: 8a0f9119f04f8ae7d54f8a44b35a1d69
-        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_4f544.dir/Debug/'
-         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccj1AB7H.s
+        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_2ef99.dir/Debug/'
+         C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccV9w32j.s
         GNU assembler version 2.43.1 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) 2.43.1.20241119
         COMPILER_PATH=C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/
         LIBRARY_PATH=C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/;C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi/lib/\x0d
-        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.'\x0d
-        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_4f544.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_4f544.a  @CMakeFiles\\cmTC_4f544.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_4f544.a && cd ."
+        COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.'\x0d
+        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_2ef99.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_2ef99.a  @CMakeFiles\\cmTC_2ef99.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_2ef99.a && cd ."
         
       exitCode: 0
   -
@@ -393,10 +393,10 @@ events:
       Parsed CXX implicit link information:
         link line regex: [^( *|.*[/\\])(arm-none-eabi-gcc\\.exe|;ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(arm-none-eabi-gcc\\.exe|;ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
-        ignore line: [Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-qdkb4o']
+        ignore line: [Change Dir: 'C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/master_si917/cmake_gcc/build/CMakeFiles/CMakeScratch/TryCompile-0ykk9n']
         ignore line: []
-        ignore line: [Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja -v cmTC_4f544]
-        ignore line: [[1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-g++.exe @CMakeFiles\\cmTC_4f544.dir\\Debug\\CMakeCXXCompilerABI.cpp.obj.rsp -o CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Run Build Command(s): C:/Users/tasrivas/.silabs/slt/installs/conan/p/ninja1a38fc85adcf7/p/ninja.exe -v cmTC_2ef99]
+        ignore line: [[1/2] C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-g++.exe @CMakeFiles\\cmTC_2ef99.dir\\Debug\\CMakeCXXCompilerABI.cpp.obj.rsp -o CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj -c C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-g++.exe]
         ignore line: [Target: arm-none-eabi]
@@ -404,8 +404,8 @@ events:
         ignore line: [Thread model: single]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20241119 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_4f544.dir/Debug/']
-        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1plus.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_4f544.dir/Debug/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccj1AB7H.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_2ef99.dir/Debug/']
+        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/cc1plus.exe -quiet -v -iprefix C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/ -isysroot C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi -D__USES_INITFINI__ -D CMAKE_INTDIR="Debug" C:/Users/tasrivas/.silabs/slt/installs/conan/p/cmakefa35ab0687064/p/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_2ef99.dir/Debug/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mcpu=arm7tdmi -mfloat-abi=soft -marm -mlibarch=armv4t -march=armv4t -g -version -o C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccV9w32j.s]
         ignore line: [GNU C++17 (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) version 14.2.1 20241119 (arm-none-eabi)]
         ignore line: [	compiled by GNU C version 9.3-win32 20200320  GMP version 6.2.1  MPFR version 3.1.6  MPC version 1.0.3  isl version isl-0.15-1-g835ea3a-GMP]
         ignore line: []
@@ -428,8 +428,8 @@ events:
         ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: 8a0f9119f04f8ae7d54f8a44b35a1d69]
-        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_4f544.dir/Debug/']
-        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccj1AB7H.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_2ef99.dir/Debug/']
+        ignore line: [ C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/bin/as.exe -v -march=armv4t -mfloat-abi=soft -meabi=5 -o CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj C:\\Users\\tasrivas\\AppData\\Local\\Temp\\ccV9w32j.s]
         ignore line: [GNU assembler version 2.43.1 (arm-none-eabi) using BFD version (Arm GNU Toolchain 14.2.rel1 (Build silabs-14.2.rel1-b66)) 2.43.1.20241119]
         ignore line: [COMPILER_PATH=C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/arm-none-eabi/14.2.1/]
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../libexec/gcc/]
@@ -438,8 +438,8 @@ events:
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/]
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/]
         ignore line: [C:/Users/tasrivas/.silabs/slt/installs/conan/p/gcc-a999d2e027337f/p/bin/../arm-none-eabi/lib/\x0d]
-        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_4f544.dir/Debug/CMakeCXXCompilerABI.cpp.'\x0d]
-        ignore line: [[2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_4f544.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_4f544.a  @CMakeFiles\\cmTC_4f544.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_4f544.a && cd ."]
+        ignore line: [COLLECT_GCC_OPTIONS='-D' 'CMAKE_INTDIR="Debug"' '-g' '-v' '-o' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.obj' '-c' '-mcpu=arm7tdmi' '-mfloat-abi=soft' '-marm' '-mlibarch=armv4t' '-march=armv4t' '-dumpdir' 'CMakeFiles/cmTC_2ef99.dir/Debug/CMakeCXXCompilerABI.cpp.'\x0d]
+        ignore line: [[2/2] C:\\windows\\system32\\cmd.exe /C "cd . && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\cmakefa35ab0687064\\p\\bin\\cmake.exe -E rm -f Debug\\libcmTC_2ef99.a && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-ar.exe qc Debug\\libcmTC_2ef99.a  @CMakeFiles\\cmTC_2ef99.Debug.rsp && C:\\Users\\tasrivas\\.silabs\\slt\\installs\\conan\\p\\gcc-a999d2e027337f\\p\\bin\\arm-none-eabi-gcc-ranlib.exe Debug\\libcmTC_2ef99.a && cd ."]
         ignore line: []
         ignore line: []
         implicit libs: []
