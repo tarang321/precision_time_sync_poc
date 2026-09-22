@@ -70,4 +70,4 @@ Base examples: [ble_ae_peripheral](https://github.com/SiliconLabs/wiseconnect/tr
 | AE APIs (`rsi_ble_set_ae_*`, `rsi_ble_ae_set_periodic_sync`, report callback) | [BLE API guide](https://docs.silabs.com/wiseconnect/latest/wiseconnect-api-reference-guide-ble/bt-low-energy1) |
 | Debug GPIO (`sl_gpio_driver_toggle_pin`) | [sl_si91x_gpio_example](https://github.com/SiliconLabs/wiseconnect/tree/master/examples/si91x_soc/peripheral/sl_si91x_gpio_example) |
 
-SDK pins in the three `.slcp` files: WiSeConnect 4.1.0, Simplicity SDK 2026.6.0. The dependency table above still lists the older 3.5.2 / 2025.6.1 pair from the first import.
+SDK pins in the three `.slcp` files: WiSeConnect 4.1.1, Simplicity SDK 2026.6.1. The dependency table above still lists the older 3.5.2 / 2025.6.1 pair from the first import.

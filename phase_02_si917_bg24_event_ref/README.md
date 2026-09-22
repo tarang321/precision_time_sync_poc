@@ -39,7 +39,7 @@ Series-2 GPIO→PRS producers are **pin-number** based (PIN0–PIN7). Prefer cap
 
 ### Si917 receiver
 
-1. Open `receiver_si917/pts_receiver_si917_p2.slcp` in Studio (WiSeConnect 4.1.0 / SiSDK 2026.6.0).
+1. Open `receiver_si917/pts_receiver_si917_p2.slcp` in Studio (WiSeConnect 4.1.1 / SiSDK 2026.6.1).
 2. Generate → Build → Flash.
 3. Run Phase 1 master first.
 
@@ -77,9 +77,9 @@ No in-tree PTS capture project existed. Code was written from these sources.
 | Si917 GPIO pulse | Same `sl_gpio` calls as Phase 1 `pts_debug_gpio.c` |
 | BG24 `.slcp` / `main.c` / BRD4187C | Workspace `Elevator_capacity_controller`, `bt_soc_blinky_demos` |
 | TIMER input capture | [series2 `timer_input_capture_interrupt`](https://github.com/SiliconLabsSoftware/peripheral_examples_gsdk/blob/master/series2/timer/timer_input_capture_interrupt/src/main.c) |
-| PRS → TIMER0 CC0 | Local SiSDK 2026.6.0 `em_prs.h`, `efr32mg24_prs_signals.h` (`PRS_ConnectSignal`, `PRS_ASYNC_GPIO_PINx`, `prsConsumerTIMER0_CC0`) |
+| PRS → TIMER0 CC0 | Local SiSDK 2026.6.1 `em_prs.h`, `efr32mg24_prs_signals.h` (`PRS_ConnectSignal`, `PRS_ASYNC_GPIO_PINx`, `prsConsumerTIMER0_CC0`) |
 | TIMER / PRS API | [TIMER](https://docs.silabs.com/gecko-platform/latest/platform-emlib-efr32xg24/timer), [PRS](https://docs.silabs.com/gecko-platform/latest/platform-emlib-efr32xg24/prs) |
 | No controller RX timestamp | WiSeConnect Periodic Advertising report fields (payload, sync handle, RSSI, data status) |
 | No Si917 GPIO timestamp HW | [SiWG917 errata `GPIO_TIMESTAMP_E301`](https://www.silabs.com/documents/public/errata/siwg917-soc-ic-errata.pdf) |
 
-SDK pins in the `.slcp` files: WiSeConnect 4.1.0, Simplicity SDK 2026.6.0.
+SDK pins in the `.slcp` files: WiSeConnect 4.1.1, Simplicity SDK 2026.6.1.
