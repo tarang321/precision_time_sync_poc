@@ -1,35 +1,46 @@
 # Precision Time Synchronization POC
 
-Phase-first layout for the BLE time-sync proof of concept. Design source: [BLE_Time_Synchronization_POC_Roadmap(2).md](BLE_Time_Synchronization_POC_Roadmap(2).md).
+Phase-first BLE time-sync proof of concept. Design source: [BLE_Time_Synchronization_POC_Roadmap(2).md](BLE_Time_Synchronization_POC_Roadmap(2).md).
+
+## SDK pins (all `.slcp`)
+
+| Package | Version | Used by |
+|---------|---------|---------|
+| WiSeConnect (`wiseconnect3_sdk`) | **4.1.1** | Si917 projects only |
+| Simplicity SDK | **2026.6.1** | Si917 + BG24 |
+
+Open each `.slcp` in Simplicity Studio → Generate → Build. Use NWP firmware from the **same** WiSeConnect 4.1.1 package.
 
 ## Layout
 
 ```text
 precision_time_sync_poc/
-  phase_01_ble_transport/          # BLE Periodic Adv transport
-    master_si917/
-    receiver_1_si917/
-    receiver_2_si917/
-  phase_02_si917_bg24_event_ref/   # active — Si917 GPIO → BG24 PRS R[N]
-    common/
-    receiver_si917/
-    bg24_capture/
-  phase_03_trigger_followup/       # active — trigger + follow-up M[N] <-> R[N]
-    common/
-    master_si917/
-    receiver_si917/
-    bg24_capture/
-  phase_04_logical_network_time/  # active — BG24 offset + rate network time
-  phase_05_scheduled_gpio/         # active — future-timestamp GPIO on BG24
-  phase_06_wifi_commands/          # active — Wi-Fi UDP commands; BLE keeps time
-  phase_07_stress_validation/      # active — stress matrix; reuse P6 FW
+  phase_01_ble_transport/          # BLE Periodic Adv transport (3× Si917)
+  phase_02_si917_bg24_event_ref/   # Si917 GPIO → BG24 PRS R[N]
+  phase_03_trigger_followup/       # Trigger + follow-up M[N] ↔ R[N]
+  phase_04_logical_network_time/   # BG24 offset + rate network time
+  phase_05_scheduled_gpio/         # Future-timestamp GPIO on BG24 (BLE PTS5)
+  phase_06_wifi_commands/          # Wi-Fi UDP commands; BLE keeps time
+  phase_07_stress_validation/      # Stress matrix; reuse Phase 6 firmware
 ```
 
-Phase 1 boards are three Si917s (1 master + 2 receivers). Phase 2 adds BG24 capture beside a Si917 receiver.
+Phase 1: three Si917s (1 master + 2 receivers). Phase 2+: add BG24 capture beside each Si917 receiver (GPIO6→PC00, GPIO7→PC01; probe PC02 from Phase 5).
+
+## Phase index
+
+| Phase | Goal | Details |
+|-------|------|---------|
+| 1 | Periodic Adv train; callback GPIO skew baseline | [IMPORT.md](phase_01_ble_transport/IMPORT.md) |
+| 2 | Hardware `R[N]` via PRS/TIMER0; delayed UART identity | [README](phase_02_si917_bg24_event_ref/README.md) |
+| 3 | Pair master `M[N]` with stored `R[N]` (follow-up AD) | [README](phase_03_trigger_followup/README.md) |
+| 4 | Logical network time on BG24 (offset + rate) | [README](phase_04_logical_network_time/README.md) |
+| 5 | Schedule GPIO at future network time (PTS5 on BLE) | [README](phase_05_scheduled_gpio/README.md) |
+| 6 | Same schedule path; commands over Wi-Fi UDP (`PTS6`) | [README](phase_06_wifi_commands/README.md) |
+| 7 | Stress / skew &lt; 200 µs; host scripts only | [README](phase_07_stress_validation/README.md) |
 
 ## Phase 1 — BLE synchronization transport
 
-**Goal:** One-to-many Periodic Advertising train; both receivers sync to the same train; measure callback-level GPIO skew on a logic analyzer.
+**Goal:** One-to-many Periodic Advertising; both receivers sync to the same train; measure callback-level GPIO skew on a logic analyzer.
 
 ### Official WiSeConnect baselines
 
@@ -41,9 +52,9 @@ Phase 1 boards are three Si917s (1 master + 2 receivers). Phase 2 adds BG24 capt
 
 Shared: `phase_01_ble_transport/common/` (payload + debug GPIO).
 
-- Examples index: https://docs.silabs.com/wiseconnect/latest/wiseconnect-examples/
+- Examples: https://docs.silabs.com/wiseconnect/latest/wiseconnect-examples/
 - AE APIs: https://docs.silabs.com/wiseconnect/latest/wiseconnect-api-reference-guide-ble/bt-low-energy1
-- Build notes and references: [phase_01_ble_transport/IMPORT.md](phase_01_ble_transport/IMPORT.md)
+- Build notes: [phase_01_ble_transport/IMPORT.md](phase_01_ble_transport/IMPORT.md)
 
 ### Exit criteria
 
@@ -57,7 +68,7 @@ Shared: `phase_01_ble_transport/common/` (payload + debug GPIO).
 
 **Goal:** Hardware-capture `R[N]` on BG24 from Si917 event GPIO; associate delayed host identity frames with captures.
 
-Details and references: [phase_02_si917_bg24_event_ref/README.md](phase_02_si917_bg24_event_ref/README.md).
+Details: [phase_02_si917_bg24_event_ref/README.md](phase_02_si917_bg24_event_ref/README.md).
 
 | Role | Project |
 |------|---------|
@@ -74,12 +85,14 @@ Path: Si917 AE callback GPIO pulse → BG24 async PRS → TIMER0 capture `R` →
 - [ ] Logs show `seq` ↔ `R` pairs
 - [ ] Confirmed: no Si917 controller RX timestamp / GPIO timestamp HW (callback edge is best available)
 
-## Later phases (stubs only)
+## Phases 3–7 (active)
 
-| Phase | Folder | Roadmap focus |
-|-------|--------|---------------|
-| 3 | `phase_03_trigger_followup` | Section 5.2 trigger + follow-up `M[N]` ↔ `R[N]` — see that folder's README |
-| 4 | `phase_04_logical_network_time` | Section 5.3 logical network time on BG24 — see that folder's README |
-| 5 | `phase_05_scheduled_gpio` | Future-timestamp hardware GPIO execution — see that folder's README |
-| 6 | `phase_06_wifi_commands` | Wi-Fi command transport; BLE keeps time — see that folder's README |
-| 7 | `phase_07_stress_validation` | Drift, loss, restart, coexistence; skew &lt; 200 µs — see that folder's README |
+Not stubs — full firmware (3–6) or host tooling (7). Open the phase README for projects, wiring, and exit criteria.
+
+| Phase | One-line |
+|-------|----------|
+| 3 | Follow-up carries prior `M`; BG24 logs `M[N]<->R[N]` |
+| 4 | Convert pairs → network time model on BG24 |
+| 5 | Arm TIMER0 CC1; toggle PC02 at `exec_m` (BLE schedule AD) |
+| 6 | BLE = PTS4 only; Linux/host stamps via UDP `TIME` / `PTS6` |
+| 7 | Stress matrix on Phase 6 binaries; LA skew is ground truth |
