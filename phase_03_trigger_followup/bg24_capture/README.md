@@ -1,3 +1,3 @@
-# Phase 3 BG24
+# BG24 capture — PARKED
 
-Open `pts_bg24_followup.slcp`. PRS capture `R[N]`, then log `M[N] <-> R[N]` when the follow-up arrives. See `../README.md`.
+Not used. POC is **2× Si917 SoC only**. See phase `README.md` and root roadmap.

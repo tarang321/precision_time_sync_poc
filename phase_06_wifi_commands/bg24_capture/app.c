@@ -89,6 +89,8 @@ void app_process_action(void)
   pts_host_sched_t sch;
   pts_capture_sample_t cap;
 
+  pts_host_rx_process();
+
   while (pts_host_rx_pop(&id)) {
     if (!id_hold_push(&id)) {
       s_orphan_ids++;

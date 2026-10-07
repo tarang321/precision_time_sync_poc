@@ -32,6 +32,7 @@
 #define PTS_MASTER_RAND_ADDR       "11:44:33:AA:BB:CC"
 #define PTS_MASTER_LOCAL_NAME      "PTS_MASTER"
 #define PTS_MASTER_ADV_SID         0x00u
+#define PTS_SEQ_TIMER_MS           25u /* PA data refresh (ms); may re-air same seq */
 
 static inline void pts_sync_encode(uint8_t out[PTS_SYNC_PAYLOAD_LEN], uint32_t seq)
 {

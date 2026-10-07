@@ -544,7 +544,7 @@ void rsi_ble_peripheral(void)
     LOG_PRINT("set ae Periodic adv params failed with 0x%lX\n", status);
     return;
   } else {
-    LOG_PRINT("set ae periodic adv params success (interval ~20-25 ms)\n");
+    LOG_PRINT("set ae periodic adv params success (interval fixed 20 ms)\n");
   }
 #endif
 

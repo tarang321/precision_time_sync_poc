@@ -2,16 +2,16 @@
 """
 Phase 6 Linux host: stamp and deliver schedule commands over Wi-Fi UDP.
 
-Usage (same LAN as the Si917 boards):
+Usage (same LAN as the Si917 boards — 1 master + 1 receiver):
   python3 pts_wifi_cmd.py --master 192.168.1.50 \\
-      --receivers 192.168.1.51,192.168.1.52 --lead-ms 100
+      --receivers 192.168.1.51 --lead-ms 100
 
 Protocol:
   -> master:5005  TIME
   <- TIME,<m_ticks>,<sys_timer_hz>
   -> master:5005  SCHED,<cmd_id>,1,<lead_ms>   (optional stamp helper)
   <- OK,<cmd_id>,<exec_m>
-  -> each RX:5006 PTS6,<cmd_id>,1,<exec_m>,0
+  -> RX:5006 PTS6,<cmd_id>,1,<exec_m>,0
 """
 
 from __future__ import annotations

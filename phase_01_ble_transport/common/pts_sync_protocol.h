@@ -1,6 +1,6 @@
 /**
  * @file pts_sync_protocol.h
- * @brief Phase 1 Periodic Advertising payload layout (master <-> receivers).
+ * @brief Phase 1 Periodic Advertising payload layout (master <-> receiver).
  *
  * AD structure (manufacturer-specific):
  *   [0] length = PTS_SYNC_AD_LEN - 1
@@ -25,8 +25,11 @@
 #define PTS_SYNC_AD_LEN            (PTS_SYNC_PAYLOAD_LEN) /* length field + rest */
 
 /* Periodic interval: N * 1.25 ms. 0x10=20ms, 0x14=25ms. */
-#define PTS_PERIODIC_INTERVAL_MIN  0x10u
-#define PTS_PERIODIC_INTERVAL_MAX  0x14u
+/* BLE units: N * 1.25 ms. Lock min=max so seq timer can track air time. */
+#define PTS_PERIODIC_INTERVAL_MIN  0x10u /* 20 ms */
+#define PTS_PERIODIC_INTERVAL_MAX  0x10u /* 20 ms */
+/* Master seq refresh must be >= PA interval or intermediate seqs never air. */
+#define PTS_SEQ_TIMER_MS           25u
 
 /* Master random address — receivers must sync to this (see ble_config.h REM_ADDR). */
 #define PTS_MASTER_RAND_ADDR       "11:44:33:AA:BB:CC"

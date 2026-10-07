@@ -1,3 +1,5 @@
-# Phase 6 BG24
+# BG24 capture — PARKED
 
-Same schedule GPIO path as Phase 5. Open `pts_bg24_wifi_cmd.slcp`. See `../README.md`.
+Not used. Current POC is **2× Si917 SoC only** (board constraint).
+
+Do not flash this tree. Network time and schedule move to the receiver Si917 — see `../README.md` and the root roadmap.

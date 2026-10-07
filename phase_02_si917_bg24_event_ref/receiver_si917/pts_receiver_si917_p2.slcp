@@ -1,15 +1,14 @@
 project_name: pts_receiver_si917_p2
 package: bluetooth_le_siwx91x_app
 quality: evaluation
-label: PTS Phase2 Receiver Si917 (SoC) event ref
+label: PTS Phase2 Receiver Si917 (SoC) local R[N]
 category: Example|BLE
 description: |
-  Precision Time Sync POC Phase 2 - Si917 receiver: BLE event GPIO edge +
-  host identity frame for BG24 PRS capture association.
+  Precision Time Sync POC Phase 2 - Si917 receiver (no BG24): sample local
+  R[N]=SysTimer at AE report, pulse GPIO6, log seq <-> R on VCOM.
 source:
 - path: app.c
 - path: ../common/pts_event_gpio.c
-- path: ../common/pts_host_tx.c
 include:
 - path: .
   file_list:
@@ -18,8 +17,7 @@ include:
 - path: ../common
   file_list:
   - path: pts_event_gpio.h
-  - path: pts_host_tx.h
-  - path: pts_event_ref_protocol.h
+  - path: pts_rx_ring.h
   - path: pts_sync_protocol.h
 define:
 - name: SL_SI91X_PRINT_DBG_LOG
@@ -45,8 +43,11 @@ component:
 - id: iostream_uart_si91x
   instance:
   - vcom
+- id: iostream_retarget_stdio
 - id: sl_gpio
+- id: brd4002a
 - id: brd4338a
+- id: SIWG917M111MGTBA
 toolchain_settings:
 - option: gcc_compiler_option
   value: -Wall -Werror -Wno-error=deprecated-declarations

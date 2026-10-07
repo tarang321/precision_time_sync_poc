@@ -1,12 +1,14 @@
-# Phase 4 — Logical network time on BG24
+# Phase 4 — Logical network time on receiver Si917
 
-**Goal:** Turn Phase 3 pairs into one conversion owned by the BG24. The hardware timer is not reset.
+**Topology:** 1× Si917 SoC master + 1× Si917 SoC receiver. **No BG24.**
+
+**Goal:** Turn Phase 3 pairs into a conversion owned by the **receiver**. Do not reset the free-running local counter.
 
 ```text
-Network time = M0 + (rate_num / rate_den) × (TIMER0 now − R0)
+Network time = M0 + (rate_num / rate_den) × (local_now − R0)
 ```
 
-`M` is Si917 SysTimer counts. `R` is BG24 TIMER0 ticks. `rate_num/rate_den` is the smoothed ratio. A new master session id clears the fit.
+`M` and `R` are both Si917 SysTimer (or chosen local) counts in this topology. `rate_num/rate_den` is the smoothed ratio. New master session id clears the fit.
 
 ## Model
 
@@ -14,35 +16,33 @@ Network time = M0 + (rate_num / rate_den) × (TIMER0 now − R0)
 |-------|---------|
 | unlocked | No anchor, or session just changed |
 | acquiring | One pair stored, rate not set |
-| locked | Rate accepted. `pts_network_time_now()` is valid |
-| holdover | No accepted pair for about eight intervals. Still extrapolates |
+| locked | Rate accepted; `pts_network_time_now()` valid |
+| holdover | No accepted pair for ~eight intervals; still extrapolates |
 
-A sample is rejected when the master or local delta is not forward, the sequence does not advance, or the new ratio is more than 12.5% off the smoothed rate. Deltas use `int32` subtraction so a `uint32` rollover is valid if the true gap fits in signed 32 bits.
+Reject samples when deltas are not forward, seq does not advance, or ratio is far off the smoothed rate.
 
 ## Packet
 
-Phase 3 layout plus a session id. Magic is `PTS4`. 24-byte AD. Host line:
-
-```text
-PTS4,<board>,<trigger_seq>,<rssi>,<fu_seq>,<M>,<session>
-```
-
-Session is `osKernelGetSysTimerCount() | 1` once per master boot.
+Phase 3 layout plus session id. Magic `PTS4`.
 
 ## Projects
 
 | Role | Project | Flash |
 |------|---------|-------|
-| Master | `master_si917/pts_master_si917_p4.slcp` | `pts_master_si917_p4.rps` |
-| Receiver | `receiver_si917/pts_receiver_si917_p4.slcp` | `pts_receiver_si917_p4.rps` |
-| BG24 | `bg24_capture/pts_bg24_network_time.slcp` | `pts_bg24_network_time.hex` |
+| Master | `master_si917/pts_master_si917_p4.slcp` | `.rps` |
+| Receiver | `receiver_si917/pts_receiver_si917_p4.slcp` | `.rps` |
 
-Wiring is unchanged: GPIO6 → PC00, GPIO7 → PC01.
+**Parked:** `bg24_capture/`.
+
+## Exit criteria
+
+- [ ] RX reaches `quality=locked`
+- [ ] Session change clears model
+- [ ] Holdover then re-lock after brief miss
 
 ## References
 
 | Used for | Reference |
 |----------|-----------|
-| Section 5.3 formula and rules | [BLE_Time_Synchronization_POC_Roadmap(2).md](../BLE_Time_Synchronization_POC_Roadmap(2).md) Phase 4 |
-| Pairs `M[N]` ↔ `R[N]` | Phase 3 `phase_03_trigger_followup/` |
-| TIMER0 free-running counter | `TIMER_CounterGet()` in SiSDK `em_timer.h` |
+| Section 5.3 | [Roadmap](../BLE_Time_Synchronization_POC_Roadmap(2).md) Phase 4 |
+| Pairs | Phase 3 |

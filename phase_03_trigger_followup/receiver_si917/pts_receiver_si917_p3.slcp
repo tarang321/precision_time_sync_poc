@@ -4,12 +4,11 @@ quality: evaluation
 label: PTS Phase3 Receiver Si917 (SoC) trigger follow-up
 category: Example|BLE
 description: |
-  Precision Time Sync POC Phase 3 — Si917 receiver pulses the event GPIO
-  and forwards trigger seq plus follow-up M to BG24.
+  Precision Time Sync POC Phase 3 — Si917 receiver samples R[N], pairs
+  follow-up M[N] on VCOM. No BG24.
 source:
 - path: app.c
 - path: ../common/pts_event_gpio.c
-- path: ../common/pts_host_tx.c
 include:
 - path: .
   file_list:
@@ -18,7 +17,8 @@ include:
 - path: ../common
   file_list:
   - path: pts_event_gpio.h
-  - path: pts_host_tx.h
+  - path: pts_rx_ring.h
+  - path: pts_r_table.h
   - path: pts_followup_protocol.h
   - path: pts_sync_protocol.h
 define:
@@ -45,8 +45,11 @@ component:
 - id: iostream_uart_si91x
   instance:
   - vcom
+- id: iostream_retarget_stdio
 - id: sl_gpio
+- id: brd4002a
 - id: brd4338a
+- id: SIWG917M111MGTBA
 toolchain_settings:
 - option: gcc_compiler_option
   value: -Wall -Werror -Wno-error=deprecated-declarations

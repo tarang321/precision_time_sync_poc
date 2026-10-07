@@ -11,7 +11,10 @@
 extern "C" {
 #endif
 
-/** Init demo GPIO (PC02) and TIMER0 CC1 compare. Call after capture init. */
+/**
+ * Init demo GPIO (PC02) and route TIMER0 CC1 output to it.
+ * Call after pts_prs_timer_capture_init(), which sets CC1 CFG before TIMER EN.
+ */
 void pts_schedule_gpio_init(void);
 
 /**
@@ -20,7 +23,7 @@ void pts_schedule_gpio_init(void);
  */
 int pts_schedule_gpio_arm(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m);
 
-/** Called from TIMER0_IRQHandler when CC1 matches. */
+/** Called from TIMER0_IRQHandler when CC1 matches. Bookkeeping only; pin is HW-driven. */
 void pts_schedule_gpio_on_cc1(void);
 
 uint32_t pts_schedule_gpio_exec_count(void);

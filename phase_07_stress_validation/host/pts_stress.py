@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Phase 7 stress runner — drives Phase 6 Wi-Fi schedule UDP.
+Phase 7 stress runner — drives Phase 6 Wi-Fi schedule UDP (1 master + 1 RX).
 
 Scenarios: baseline | drift | wifi-load | lead-sweep
-Skew is measured on the logic analyzer; this script only logs commands.
+Schedule accuracy is measured on the logic analyzer; this script only logs commands.
 """
 
 from __future__ import annotations

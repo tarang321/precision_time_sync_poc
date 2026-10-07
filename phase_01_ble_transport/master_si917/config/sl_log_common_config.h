@@ -95,7 +95,7 @@
 // <SL_LOG_CONFIG_ARG9 => 9
 // <SL_LOG_CONFIG_ARG10 => 10
 // <i> Default: 3
-#define SL_LOG_CONFIG_ARG SL_LOG_CONFIG_ARG3
+#define SL_LOG_CONFIG_ARG SL_LOG_CONFIG_ARG10
 
 // <o SL_LOG_NUMBER_OF_EVENTS> No of Logs <1-255>
 // <i> Default: 128

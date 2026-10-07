@@ -32,11 +32,20 @@ typedef struct {
 
 void pts_host_rx_init(void);
 
-/** Non-blocking: parse completed PTS4 lines from RX ISR buffer. */
+/**
+ * Parse raw lines queued by the RX ISR into the PTS4 / PTS5 rings.
+ * Call from the main loop before the pop functions. Keeps sscanf out of the ISR.
+ */
+void pts_host_rx_process(void);
+
+/** Non-blocking: next parsed PTS4 identity line. */
 bool pts_host_rx_pop(pts_host_id_t *out);
 
-/** Non-blocking: parse completed PTS5 schedule lines. */
+/** Non-blocking: next parsed PTS5 schedule line. */
 bool pts_host_rx_pop_sched(pts_host_sched_t *out);
+
+/** Lines lost because the main loop did not drain the raw ring in time. */
+uint32_t pts_host_rx_raw_drops(void);
 
 #ifdef __cplusplus
 }

@@ -130,3 +130,6 @@
 3372	3740	8117746365283122	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_06_wifi_commands/receiver_si917/app.c.obj	1a0ebda8d6a01c8b
 2571	3799	8117746357271670	CMakeFiles/slc.dir/base/e79c72892d7d318d82bdd1c45685a090/p/components/sli_wifi/src/sli_wifi.c.obj	76da79e99a6a243c
 3799	5932	8117746369550437	base/pts_receiver_si917_p6.out	7998540cd02e8a67
+74	420	8123681272817754	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_06_wifi_commands/common/pts_event_gpio.c.obj	22d2f3d90db16504
+85	614	8123681272933013	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_06_wifi_commands/receiver_si917/app.c.obj	1a0ebda8d6a01c8b
+614	3054	8123681278222715	base/pts_receiver_si917_p6.out	7998540cd02e8a67

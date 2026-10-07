@@ -1,8 +1,5 @@
-# Receiver 2 Si917 — Phase 1 (code ready)
+# Receiver 2 Si917 — parked
 
-**Role:** Second receiver on the same train (LA channel 2).
+Not used in the current **1 master + 1 receiver** SoC bring-up. Keep `receiver_1_si917` only.
 
-**Studio project:** `pts_receiver_2_si917_soc.slcp`  
-Same code as receiver 1; `PTS_RX_BOARD_ID=2`; local rand addr ends in `:57`.
-
-Open `pts_receiver_2_si917_soc.slcp` → build/flash → probe GPIO6 alongside RX1 for callback skew.
+Same code as RX1 (`PTS_RX_BOARD_ID=2`) if you later restore a two-RX skew test.

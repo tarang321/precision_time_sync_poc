@@ -5,7 +5,7 @@ label: PTS Phase3 Master Si917 (SoC) trigger follow-up
 category: Example|BLE
 description: |
   Precision Time Sync POC Phase 3 — Periodic Advertising trigger N plus
-  follow-up M of the previous trigger.
+  follow-up M of the previous trigger (Si917-only, no BG24).
 source:
 - path: app.c
 - path: ../common/pts_debug_gpio.c
@@ -41,8 +41,11 @@ component:
 - id: iostream_uart_si91x
   instance:
   - vcom
+- id: iostream_retarget_stdio
 - id: sl_gpio
+- id: brd4002a
 - id: brd4338a
+- id: SIWG917M111MGTBA
 toolchain_settings:
 - option: gcc_compiler_option
   value: -Wall -Werror -Wno-error=deprecated-declarations

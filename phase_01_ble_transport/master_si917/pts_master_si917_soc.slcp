@@ -39,8 +39,11 @@ component:
 - id: iostream_uart_si91x
   instance:
   - vcom
+- id: iostream_retarget_stdio
 - id: sl_gpio
+- id: brd4002a
 - id: brd4338a
+- id: SIWG917M111MGTBA
 toolchain_settings:
 - option: gcc_compiler_option
   value: -Wall -Werror -Wno-error=deprecated-declarations

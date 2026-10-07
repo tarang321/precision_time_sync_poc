@@ -41,7 +41,7 @@
 #ifdef SLI_SI91X_MCU_INTERFACE
 #define RSI_BLE_MAX_NBR_ATT_REC     20
 #define RSI_BLE_MAX_NBR_PERIPHERALS 1
-#define RSI_BLE_MAX_NBR_CENTRALS    1
+#define RSI_BLE_MAX_NBR_CENTRALS    1 /* required for AE scan / periodic sync */
 #else
 #define RSI_BLE_MAX_NBR_ATT_REC     80
 #define RSI_BLE_MAX_NBR_PERIPHERALS 3

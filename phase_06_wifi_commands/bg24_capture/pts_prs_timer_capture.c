@@ -104,8 +104,22 @@ void pts_prs_timer_capture_init(void)
   TIMER_Init(TIMER0, &timer_init);
   TIMER_InitCC(TIMER0, 0, &cc_init);
 
+  /*
+   * CC1 CFG (compare mode) needs TIMER EN=0 on Series 2, so it is set here
+   * before the counter starts. pts_schedule_gpio owns CC1 CTRL/OC and the
+   * pin route; it must not call TIMER_InitCC on a running counter.
+   */
+  {
+    TIMER_InitCC_TypeDef cc1_init = TIMER_INITCC_DEFAULT;
+    cc1_init.mode = timerCCModeCompare;
+    cc1_init.cmoa = timerOutputActionNone;
+    TIMER_InitCC(TIMER0, 1, &cc1_init);
+  }
+
   TIMER_IntEnable(TIMER0, TIMER_IEN_CC0);
   NVIC_ClearPendingIRQ(TIMER0_IRQn);
+  /* Highest priority: capture ring and CC1 bookkeeping must not queue behind UART. */
+  NVIC_SetPriority(TIMER0_IRQn, 0u);
   NVIC_EnableIRQ(TIMER0_IRQn);
 
   TIMER_Enable(TIMER0, true);

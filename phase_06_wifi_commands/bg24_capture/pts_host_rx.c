@@ -23,15 +23,26 @@
 #define PTS_HOST_ID_RING    32u
 #define PTS_HOST_SCHED_RING 16u
 #define PTS_HOST_LINE_MAX   PTS_FU_LINE_MAX
+/* Raw lines land here from the ISR; sscanf runs in pts_host_rx_process(). */
+#define PTS_HOST_RAW_RING   8u
+
+typedef struct {
+  char    text[PTS_HOST_LINE_MAX];
+  uint8_t len;
+} pts_raw_line_t;
 
 static volatile char s_line[PTS_HOST_LINE_MAX];
 static volatile uint8_t s_line_len;
-static volatile pts_host_id_t s_id_ring[PTS_HOST_ID_RING];
-static volatile uint32_t s_id_head;
-static volatile uint32_t s_id_tail;
-static volatile pts_host_sched_t s_sched_ring[PTS_HOST_SCHED_RING];
-static volatile uint32_t s_sched_head;
-static volatile uint32_t s_sched_tail;
+static pts_raw_line_t s_raw_ring[PTS_HOST_RAW_RING];
+static volatile uint32_t s_raw_head;
+static volatile uint32_t s_raw_tail;
+static volatile uint32_t s_raw_drops;
+static pts_host_id_t s_id_ring[PTS_HOST_ID_RING];
+static uint32_t s_id_head;
+static uint32_t s_id_tail;
+static pts_host_sched_t s_sched_ring[PTS_HOST_SCHED_RING];
+static uint32_t s_sched_head;
+static uint32_t s_sched_tail;
 
 void USART0_RX_IRQHandler(void)
 {
@@ -41,38 +52,20 @@ void USART0_RX_IRQHandler(void)
   char c = (char)USART_Rx(USART0);
   if ((c == '\n') || (c == '\r')) {
     if (s_line_len > 0u) {
-      char tmp[PTS_HOST_LINE_MAX];
-      uint8_t n = s_line_len;
-      if (n >= PTS_HOST_LINE_MAX) {
-        n = (uint8_t)(PTS_HOST_LINE_MAX - 1u);
-      }
-      for (uint8_t i = 0; i < n; i++) {
-        tmp[i] = s_line[i];
-      }
-      tmp[n] = '\0';
-      s_line_len = 0u;
-
-      pts_host_id_t id;
-      int fu_valid = 0;
-      if (pts_fu_parse_line(tmp, &id.board_id, &id.trigger_seq, &id.rssi,
-                            &id.fu_seq, &id.m_ticks, &fu_valid, &id.session) == 0) {
-        id.fu_valid = (uint8_t)fu_valid;
-        uint32_t next = (s_id_head + 1u) % PTS_HOST_ID_RING;
-        if (next != s_id_tail) {
-          s_id_ring[s_id_head] = id;
-          s_id_head = next;
+      uint32_t next = (s_raw_head + 1u) % PTS_HOST_RAW_RING;
+      if (next != s_raw_tail) {
+        pts_raw_line_t *dst = &s_raw_ring[s_raw_head];
+        uint8_t n = s_line_len;
+        for (uint8_t i = 0; i < n; i++) {
+          dst->text[i] = s_line[i];
         }
+        dst->text[n] = '\0';
+        dst->len = n;
+        s_raw_head = next;
       } else {
-        pts_host_sched_t sch;
-        if (pts_sched_parse_line(tmp, &sch.board_id, &sch.cmd_id, &sch.cmd_type,
-                                 &sch.exec_m, &sch.status) == 0) {
-          uint32_t next = (s_sched_head + 1u) % PTS_HOST_SCHED_RING;
-          if (next != s_sched_tail) {
-            s_sched_ring[s_sched_head] = sch;
-            s_sched_head = next;
-          }
-        }
+        s_raw_drops++;
       }
+      s_line_len = 0u;
     }
     return;
   }
@@ -81,6 +74,41 @@ void USART0_RX_IRQHandler(void)
   } else {
     s_line_len = 0u; /* resync */
   }
+}
+
+void pts_host_rx_process(void)
+{
+  while (s_raw_tail != s_raw_head) {
+    const char *text = s_raw_ring[s_raw_tail].text;
+    pts_host_id_t id;
+    int fu_valid = 0;
+
+    if (pts_fu_parse_line(text, &id.board_id, &id.trigger_seq, &id.rssi,
+                          &id.fu_seq, &id.m_ticks, &fu_valid, &id.session) == 0) {
+      id.fu_valid = (uint8_t)fu_valid;
+      uint32_t next = (s_id_head + 1u) % PTS_HOST_ID_RING;
+      if (next != s_id_tail) {
+        s_id_ring[s_id_head] = id;
+        s_id_head = next;
+      }
+    } else {
+      pts_host_sched_t sch;
+      if (pts_sched_parse_line(text, &sch.board_id, &sch.cmd_id, &sch.cmd_type,
+                               &sch.exec_m, &sch.status) == 0) {
+        uint32_t next = (s_sched_head + 1u) % PTS_HOST_SCHED_RING;
+        if (next != s_sched_tail) {
+          s_sched_ring[s_sched_head] = sch;
+          s_sched_head = next;
+        }
+      }
+    }
+    s_raw_tail = (s_raw_tail + 1u) % PTS_HOST_RAW_RING;
+  }
+}
+
+uint32_t pts_host_rx_raw_drops(void)
+{
+  return s_raw_drops;
 }
 
 void pts_host_rx_init(void)
@@ -101,6 +129,8 @@ void pts_host_rx_init(void)
 
   USART_IntEnable(USART0, USART_IEN_RXDATAV);
   NVIC_ClearPendingIRQ(USART0_RX_IRQn);
+  /* Below TIMER0 (0): a UART byte must never delay capture/compare handling. */
+  NVIC_SetPriority(USART0_RX_IRQn, 3u);
   NVIC_EnableIRQ(USART0_RX_IRQn);
 
   USART_Enable(USART0, usartEnableRx);

@@ -1,3 +1,3 @@
-# Phase 4 BG24
+# BG24 capture — PARKED
 
-Open `pts_bg24_network_time.slcp`. See `../README.md`.
+Not used. POC is **2× Si917 SoC only**. See phase `README.md` and root roadmap.

@@ -126,3 +126,7 @@
 2641	3438	8117742305584501	CMakeFiles/slc.dir/base/c013e64fe3c3a9b8df7d89550a8ef3fd/p/simpleca33d691c539/p/freertos/kernel/tasks.c.obj	6c5c0a9ac5c62640
 3078	3441	8117742309964664	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_03_trigger_followup/master_si917/app.c.obj	da5c3dd9159550d3
 3441	5733	8117742313583331	base/pts_master_si917_p3.out	45d704fc6ab204d3
+41	371	8130545258341299	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_03_trigger_followup/master_si917/app.c.obj	da5c3dd9159550d3
+372	2488	8130545261642456	base/pts_master_si917_p3.out	45d704fc6ab204d3
+51	497	8130575696937653	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_03_trigger_followup/common/pts_debug_gpio.c.obj	e9bf67eb379d7487
+498	2988	8130575701394711	base/pts_master_si917_p3.out	45d704fc6ab204d3

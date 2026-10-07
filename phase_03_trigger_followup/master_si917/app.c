@@ -51,6 +51,10 @@
 #include "rsi_bt_common_apis.h"
 #include "rsi_common_apis.h"
 
+/* ble_ae_peripheral_soc 4.1.1 UART path. Do not use rsi LOG_PRINT (mutex+printf). */
+#undef LOG_PRINT
+#define LOG_PRINT(...) SL_DEBUG_LOG_V2(INFO, __VA_ARGS__)
+
 #define RSI_BLE_LOCAL_NAME  PTS_MASTER_LOCAL_NAME
 #define BLE_AE_ADV_DATA     "PTS_MASTER"
 #define BLE_AE_ADV_DATA_LEN 0x19
@@ -73,7 +77,7 @@ static uint8_t g_pts_have_m;
 
 static void rsi_ble_app_set_event(uint32_t event_num);
 
-/** Sample M at the firmware boundary, then encode trigger N plus follow-up of previous. */
+/** Sample M[N] at set_ae_data boundary; packet carries trigger N + follow-up M[N-1]. */
 static void pts_master_build_payload(void)
 {
   uint32_t prev_m   = g_pts_m_ticks;
@@ -121,7 +125,7 @@ uint8_t ble_acceptlist_addr1[BLE_ACCEPT_LIST_ADDR_LEN] = { 0xDA, 0x81, 0xE0, 0xB
 /*=======================================================================*/
 //!    Application powersave configurations
 /*=======================================================================*/
-#define ENABLE_NWP_POWER_SAVE 1 //! Set to 1 for powersave mode
+#define ENABLE_NWP_POWER_SAVE 0 //! Phase 1 transport: keep NWP awake for reliable PA data updates
 
 #if ENABLE_NWP_POWER_SAVE
 //! Power Save Profile Mode
@@ -144,6 +148,13 @@ osSemaphoreId_t ble_main_task_sem;
 int8_t rsi_app_resp_tx_power                  = 0;
 uint32_t rsi_app_resp_max_no_of_supp_adv_sets = 0;
 static uint16_t rsi_app_resp_max_adv_data_len = 0;
+
+#if (defined(SLI_SI91X_MCU_INTERFACE) || defined(SLI_SI91X_NCP_INTERFACE))
+void vApplicationIdleHook(void)
+{
+  sl_log_flush();
+}
+#endif
 
 static const sl_wifi_device_configuration_t
   config = { .boot_option = LOAD_NWP_FW,
@@ -212,7 +223,11 @@ static const sl_wifi_device_configuration_t
                   | SL_SI91X_BLE_AE_MAX_ADV_SETS(RSI_BLE_AE_MAX_ADV_SETS)
 #endif
                     ),
-               .config_feature_bit_map = (SL_SI91X_FEAT_SLEEP_GPIO_SEL_BITMAP | SL_SI91X_ENABLE_ENHANCED_MAX_PSP) } };
+               .config_feature_bit_map = (SL_SI91X_FEAT_SLEEP_GPIO_SEL_BITMAP | SL_WIFI_ENABLE_ENHANCED_MAX_PSP) },
+  .ta_pool             = { .tx_ratio_in_buffer_pool = 0, .rx_ratio_in_buffer_pool = 0, .global_ratio_in_buffer_pool = 0 },
+  .efuse_data_type     = SL_SI91X_EFUSE_MFG_SW_VERSION,
+  .nwp_fw_image_number = SL_SI91X_NWP_FW_IMAGE_NUMBER_0
+};
 
 const osThreadAttr_t thread_attributes = {
   .name       = "application_thread",
@@ -538,7 +553,7 @@ void rsi_ble_peripheral(void)
     LOG_PRINT("set ae Periodic adv params failed with 0x%lX\n", status);
     return;
   } else {
-    LOG_PRINT("set ae periodic adv params success (interval ~20-25 ms)\n");
+    LOG_PRINT("set ae periodic adv params success (interval 20 ms fixed)\n");
   }
 #endif
 
@@ -653,9 +668,9 @@ void rsi_ble_peripheral(void)
   }
   g_pts_seq_timer = osTimerNew(pts_seq_timer_cb, osTimerPeriodic, NULL, NULL);
   if (g_pts_seq_timer != NULL) {
-    /* ~20 ms assuming 1 ms RTOS tick */
-    (void)osTimerStart(g_pts_seq_timer, 20U);
-    LOG_PRINT("PTS seq refresh timer started (20 ms)\n");
+    /* Must be >= PA interval (20 ms); 25 ms leaves controller scheduling margin. */
+    (void)osTimerStart(g_pts_seq_timer, PTS_SEQ_TIMER_MS);
+    LOG_PRINT("PTS seq refresh timer started (%u ms)\n", (unsigned)PTS_SEQ_TIMER_MS);
   } else {
     LOG_PRINT("PTS seq refresh timer create failed\n");
   }
@@ -813,15 +828,31 @@ void rsi_ble_peripheral(void)
       case RSI_APP_EVENT_PTS_SEQ_UPDATE: {
         rsi_ble_app_clear_event(RSI_APP_EVENT_PTS_SEQ_UPDATE);
 #if PERIODIC_ADV_EN
-        g_pts_seq++;
-        pts_master_build_payload();
-        status = pts_master_push_periodic_data();
-        if (status != RSI_SUCCESS) {
-          LOG_PRINT("PTS seq update failed 0x%lX seq=%lu\n", status, (unsigned long)g_pts_seq);
-        } else if ((g_pts_seq % 50u) == 0u) {
-          LOG_PRINT("PTS master seq=%lu M=%lu\n", (unsigned long)g_pts_seq, (unsigned long)g_pts_m_ticks);
+        /* Advance seq only after HCI accepts PA data — failed push must not skip air. */
+        {
+          uint32_t prev                              = g_pts_seq;
+          uint32_t prev_m                            = g_pts_m_ticks;
+          uint8_t prev_have                          = g_pts_have_m;
+          uint8_t prev_payload[PTS_FU_PAYLOAD_LEN];
+          memcpy(prev_payload, g_pts_periodic_payload, PTS_FU_PAYLOAD_LEN);
+          g_pts_seq = prev + 1u;
+          pts_master_build_payload();
+          status = pts_master_push_periodic_data();
+          if (status != RSI_SUCCESS) {
+            g_pts_seq     = prev;
+            g_pts_m_ticks = prev_m;
+            g_pts_have_m  = prev_have;
+            memcpy(g_pts_periodic_payload, prev_payload, PTS_FU_PAYLOAD_LEN);
+            LOG_PRINT("PTS seq update failed 0x%lX kept_seq=%lu\n", status, (unsigned long)g_pts_seq);
+          } else {
+            pts_debug_gpio_toggle();
+            if ((g_pts_seq % 50u) == 0u) {
+              LOG_PRINT("PTS master seq=%lu M=%lu\n",
+                        (unsigned long)g_pts_seq,
+                        (unsigned long)g_pts_m_ticks);
+            }
+          }
         }
-        pts_debug_gpio_toggle();
 #endif
       } break;
     }

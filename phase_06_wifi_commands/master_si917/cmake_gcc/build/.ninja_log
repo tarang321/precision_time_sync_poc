@@ -129,3 +129,5 @@
 3273	3636	8117745952186238	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_06_wifi_commands/common/pts_wifi_cmd.c.obj	7cc88344214e6214
 2534	3645	8117745944796493	CMakeFiles/slc.dir/base/e79c72892d7d318d82bdd1c45685a090/p/components/sli_wifi/src/sli_wifi.c.obj	9155133410bff127
 3645	5882	8117745955898647	base/pts_master_si917_p6.out	178b5f6aaa3be25a
+23	519	8123681311411828	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_06_wifi_commands/master_si917/app.c.obj	4854ab542c933d87
+519	2793	8123681316370049	base/pts_master_si917_p6.out	178b5f6aaa3be25a

@@ -1,12 +1,11 @@
 /**
  * @file pts_event_ref_protocol.h
- * @brief Phase 2 Si917 -> BG24 event-identity frame (delayed association).
+ * @brief Parked BG24 identity-frame format (unused in Si917-only Phase 2).
  *
- * Timing path is GPIO edge -> BG24 PRS/TIMER capture R[].
- * This frame only identifies which sequence N belongs to the already-captured
- * edge. Frame delay must not define R[N].
+ * Active Phase 2 path: sample R[N] = osKernelGetSysTimerCount() on RX,
+ * pulse GPIO6, log seq <-> R on VCOM.
  *
- * Wire ASCII (115200 8N1):
+ * Legacy wire ASCII (115200 8N1), kept for reference:
  *   PTS2,<board_id>,<seq>,<rssi>\n
  */
 #ifndef PTS_EVENT_REF_PROTOCOL_H

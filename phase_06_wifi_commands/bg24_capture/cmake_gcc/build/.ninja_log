@@ -80,3 +80,9 @@
 1239	1460	8117745527766934	CMakeFiles/slc.dir/base/d2cbbac8f8f14d5b22210bd41a2492b5/bg24_capture/pts_network_time.c.obj	95473453fe98f99a
 1265	1482	8117745528042182	CMakeFiles/slc.dir/base/d2cbbac8f8f14d5b22210bd41a2492b5/bg24_capture/pts_schedule_gpio.c.obj	334a6841d44fe1fa
 1482	4523	8117745530199809	base/pts_bg24_wifi_cmd.out	5bc5d43bc4d4b977
+87	366	8123681113716660	CMakeFiles/slc.dir/base/d2cbbac8f8f14d5b22210bd41a2492b5/bg24_capture/pts_prs_timer_capture.c.obj	3bb236886efca474
+47	367	8123681113315568	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_06_wifi_commands/bg24_capture/app.c.obj	da92a6181d82258d
+95	368	8123681113796662	CMakeFiles/slc.dir/base/d2cbbac8f8f14d5b22210bd41a2492b5/bg24_capture/pts_schedule_gpio.c.obj	334a6841d44fe1fa
+70	380	8123681113543382	CMakeFiles/slc.dir/base/8c42494e6e9f5cee8fccee5b60a1f14d/phase_06_wifi_commands/bg24_capture/pts_host_rx.c.obj	5bed0544df719f33
+79	432	8123681113636661	CMakeFiles/slc.dir/base/d2cbbac8f8f14d5b22210bd41a2492b5/bg24_capture/pts_network_time.c.obj	95473453fe98f99a
+433	2243	8123681117166720	base/pts_bg24_wifi_cmd.out	5bc5d43bc4d4b977
