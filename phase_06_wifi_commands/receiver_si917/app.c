@@ -49,24 +49,20 @@
 #include "sl_utility.h"
 #include "pts_sync_protocol.h"
 #include "pts_followup_protocol.h"
+#include "pts_schedule_protocol.h"
+#include "pts_schedule_gpio.h"
 #include "pts_event_gpio.h"
-#include "pts_host_tx.h"
-#include "pts_wifi_cmd.h"
-#include "pts_wifi_cmd_protocol.h"
+#include "pts_rx_ring.h"
+#include "pts_r_table.h"
+#include "pts_network_time.h"
+
+/* Prefer Si91x VCOM log path (same as Phase 3). */
+#undef LOG_PRINT
+#define LOG_PRINT(...) SL_DEBUG_LOG_V2(INFO, __VA_ARGS__)
 
 #ifndef PTS_RX_BOARD_ID
 #define PTS_RX_BOARD_ID 1
 #endif
-
-static void pts_rx_on_wifi_sched(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m, uint8_t status)
-{
-  (void)pts_host_tx_send_sched((uint8_t)PTS_RX_BOARD_ID, cmd_id, cmd_type, exec_m, status);
-  LOG_PRINT("RX%d wifi cmd=%lu type=%u exec_m=%lu\n",
-            PTS_RX_BOARD_ID,
-            (unsigned long)cmd_id,
-            (unsigned)cmd_type,
-            (unsigned long)exec_m);
-}
 
 //! Address type of the device to connect
 #define RSI_BLE_DEV_ADDR_TYPE LE_RANDOM_ADDRESS
@@ -88,6 +84,10 @@ static void pts_rx_on_wifi_sched(uint32_t cmd_id, uint8_t cmd_type, uint32_t exe
 //!	Powersave configurations
 /*=======================================================================*/
 #define ENABLE_NWP_POWER_SAVE 0 //! Set to 1 for powersave mode
+/* RF experiment: 1 = SL_SI91X_BLE_MODE (may need bt_stack_bypass). Default 0. */
+#ifndef PTS_COEX_BLE_ONLY
+#define PTS_COEX_BLE_ONLY 0
+#endif
 #if ENABLE_NWP_POWER_SAVE
 //! Power Save Profile Mode
 #define PSP_MODE RSI_SLEEP_MODE_2
@@ -118,15 +118,32 @@ sl_wifi_performance_profile_v2_t wifi_profile = { .profile = ASSOCIATED_POWER_SA
 #endif
 
 //! Application global parameters.
-static volatile uint8_t rsi_app_async_event_map = 0;
+static volatile uint32_t rsi_app_async_event_map = 0;
 static uint8_t remote_addr_type                 = 0;
 static uint8_t remote_name[31];
-static uint8_t remote_dev_addr[18]   = { 0 };
-static rsi_ble_per_adv_report_t g_last_per_adv_report;
-static volatile uint8_t g_per_adv_report_valid;
+static uint8_t remote_dev_addr[18] = { 0 };
+static pts_rx_ring_t g_pts_rx_ring;
+static pts_r_table_t g_pts_r_table;
 static uint32_t g_pts_last_seq;
 static uint32_t g_pts_miss_count;
+static uint32_t g_pts_pairs;
+static uint32_t g_pts_fu_miss_r;
+static uint32_t g_pts_fit_ok;
 static uint8_t g_pts_have_seq;
+static uint8_t g_pts_ae_seen;
+static pts_sync_quality_t g_pts_last_q;
+/* Loss instrumentation (callback + drain). */
+static volatile uint32_t g_pts_rpt_total;
+static volatile uint32_t g_pts_rpt_bad_status;
+static volatile uint32_t g_pts_rpt_incomplete;
+static uint32_t g_pts_decode_fail;
+static int32_t g_pts_rssi_min = 127;
+static int64_t g_pts_rssi_sum;
+static uint32_t g_pts_rssi_n;
+/* Dedupe paired follow-up seqs. */
+static uint32_t g_pts_paired_seq[64];
+static uint8_t g_pts_paired_valid[64];
+static uint16_t g_pts_paired_next;
 static uint8_t device_found          = 0;
 static uint8_t remote_dev_bd_addr[6] = { 0 };
 
@@ -145,7 +162,11 @@ static const sl_wifi_device_configuration_t
              .region_code = US,
              .boot_config = {
                .oper_mode              = SL_SI91X_CLIENT_MODE,
+#if PTS_COEX_BLE_ONLY
+               .coex_mode              = SL_SI91X_BLE_MODE,
+#else
                .coex_mode              = SL_SI91X_WLAN_BLE_MODE,
+#endif
                .feature_bit_map        = (SL_SI91X_FEAT_WPS_DISABLE | SL_SI91X_FEAT_ULP_GPIO_BASED_HANDSHAKE
                                    | SL_SI91X_FEAT_DEV_TO_HOST_ULP_GPIO_1),
                .tcp_ip_feature_bit_map = (SL_SI91X_TCP_IP_FEAT_DHCPV4_CLIENT | SL_SI91X_TCP_IP_FEAT_EXTENSION_VALID),
@@ -303,27 +324,59 @@ void rsi_ble_simple_central_on_ae_adv_report_event(uint16_t status, rsi_ble_ae_a
 void rsi_ble_simple_central_on_ae_periodic_adv_sync_estbl_event(uint16_t status,
                                                                 rsi_ble_per_adv_sync_estbl_t *ae_periodic_adv_sync)
 {
-  if (ae_periodic_adv_sync != NULL) {
-    LOG_PRINT("\nRX%d Periodic sync estbl status=0x%X handle=%u sid=%u\n",
-              PTS_RX_BOARD_ID,
-              status,
-              ae_periodic_adv_sync->sync_handle,
-              ae_periodic_adv_sync->adv_sid);
-  } else {
-    LOG_PRINT("\nRX%d Periodic sync estbl status=0x%X (null report)\n", PTS_RX_BOARD_ID, status);
-  }
+  /* No logging here — BLE callback context. Log in the main-loop event handler. */
+  UNUSED_PARAMETER(status);
+  UNUSED_PARAMETER(ae_periodic_adv_sync);
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_PER_SYNC_ESTBL);
+}
+
+static int pts_paired_seen(uint32_t seq)
+{
+  uint16_t i;
+  for (i = 0u; i < 64u; i++) {
+    if (g_pts_paired_valid[i] && (g_pts_paired_seq[i] == seq)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void pts_paired_mark(uint32_t seq)
+{
+  g_pts_paired_seq[g_pts_paired_next]   = seq;
+  g_pts_paired_valid[g_pts_paired_next] = 1u;
+  g_pts_paired_next                     = (uint16_t)((g_pts_paired_next + 1u) % 64u);
+}
+
+static void pts_paired_reset(void)
+{
+  uint16_t i;
+  g_pts_paired_next = 0u;
+  for (i = 0u; i < 64u; i++) {
+    g_pts_paired_valid[i] = 0u;
+  }
 }
 
 void rsi_ble_simple_central_on_ae_periodic_adv_report_event(uint16_t status,
                                                             rsi_ble_per_adv_report_t *ae_per_adv_report)
 {
-  (void)status;
+  g_pts_rpt_total++;
+  if (status != 0u) {
+    g_pts_rpt_bad_status++;
+  }
   if (ae_per_adv_report != NULL) {
-    /* Phase 2: earliest available edge — pulse before RTOS wake. */
+    uint32_t r_ticks = osKernelGetSysTimerCount();
+    if (ae_per_adv_report->data_status != 0u) {
+      g_pts_rpt_incomplete++;
+    }
     pts_event_gpio_pulse();
-    memcpy(&g_last_per_adv_report, ae_per_adv_report, sizeof(g_last_per_adv_report));
-    g_per_adv_report_valid = 1u;
+    (void)pts_rx_ring_push(&g_pts_rx_ring,
+                           ae_per_adv_report->data,
+                           ae_per_adv_report->data_len,
+                           ae_per_adv_report->RSSI,
+                           r_ticks,
+                           ae_per_adv_report->data_status,
+                           status);
   }
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_PER_ADV_REPORT);
 }
@@ -332,9 +385,7 @@ void rsi_ble_simple_central_on_ae_periodic_adv_sync_lost_event(uint16_t status,
                                                                rsi_ble_per_adv_sync_lost_t *ae_per_sync_lost)
 {
   UNUSED_PARAMETER(status);
-
-  LOG_PRINT("\n \n Periodic Adv Sync Lost Event : sync handle = %d \r\n", ae_per_sync_lost->sync_handle);
-
+  UNUSED_PARAMETER(ae_per_sync_lost);
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_PER_ADV_SYNC_LOST);
 }
 
@@ -342,36 +393,20 @@ void rsi_ble_simple_central_on_ae_scan_timeout_event(uint16_t status, rsi_ble_sc
 {
   UNUSED_PARAMETER(status);
   UNUSED_PARAMETER(ae_scan_timeout);
-
-  LOG_PRINT("\n \n AE Scan time-out event \r\n");
-
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_SCAN_TIMEOUT);
 }
 
 void rsi_ble_simple_central_on_ae_adv_set_terminated_event(uint16_t status, rsi_ble_adv_set_terminated_t *ae_adv_set)
 {
   UNUSED_PARAMETER(status);
-
-  LOG_PRINT("\n \n Adv set terminated event :status = %d \r\n", ae_adv_set->status);
-  LOG_PRINT_D("\n \n \t \t adv handle = %d \r\n", ae_adv_set->adv_handle);
-  LOG_PRINT_D("\n \n \t \t connection handle = %d \r\n", ae_adv_set->conn_handle);
-  LOG_PRINT_D("\n \n \t \t No.of Completed AE events = %d \r\n", ae_adv_set->num_completed_ae_events);
-
+  UNUSED_PARAMETER(ae_adv_set);
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_ADV_SET_TERMINATED);
 }
 
 void rsi_ble_simple_central_on_ae_scan_req_recvd_event(uint16_t status, rsi_ble_scan_req_recvd_t *ae_scan_req)
 {
   UNUSED_PARAMETER(status);
-
-  uint8_t scanner_addr[18] = { 0 };
-
-  LOG_PRINT("\n \n AE scan request received event :adv handle = %d \r\n", ae_scan_req->adv_handle);
-  LOG_PRINT_D("\n \n \t \t scanner addr type = %d \r\n", ae_scan_req->scanner_addr_type);
-
-  rsi_6byte_dev_address_to_ascii((uint8_t *)scanner_addr, (uint8_t *)ae_scan_req->scanner_addr);
-  LOG_PRINT_D("\n \n \t \t Adv addr = %s\r\n", scanner_addr);
-
+  UNUSED_PARAMETER(ae_scan_req);
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_SCAN_REQ_RECVD);
 }
 
@@ -526,7 +561,6 @@ void ble_ae_central(void)
 {
   int32_t status                                             = 0;
   int32_t temp_event_map                                     = 0;
-  int32_t temp_event_map1                                    = 0;
   sl_wifi_firmware_version_t version                         = { 0 };
   static uint8_t rsi_app_resp_get_dev_addr[RSI_DEV_ADDR_LEN] = { 0 };
   uint8_t local_dev_addr[LOCAL_DEV_ADDR_LEN]                 = { 0 };
@@ -600,7 +634,7 @@ void ble_ae_central(void)
   rsi_ble_ae_set_scan_params_t ae_set_scan_params          = { 0 };
   ae_set_scan_params.own_addr_type                         = LE_PUBLIC_ADDRESS;
   ae_set_scan_params.scanning_filter_policy                = RSI_BLE_SCAN_FILTER_TYPE;
-  ae_set_scan_params.scanning_phys                         = (PHY_1M | PHY_LE_CODED);
+  ae_set_scan_params.scanning_phys                         = PHY_1M; /* 0x4E12 if CODED with this role mix */
   ae_set_scan_params.ScanParams[AE_SCAN_SET1].ScanType     = PRI_PHY_BLE_SCAN_TYPE;
   ae_set_scan_params.ScanParams[AE_SCAN_SET1].ScanInterval = LE_SCAN_INTERVAL;
   ae_set_scan_params.ScanParams[AE_SCAN_SET1].ScanWindow   = LE_SCAN_WINDOW;
@@ -657,13 +691,15 @@ void ble_ae_central(void)
   } else {
     LOG_PRINT(" \n set ae periodic sync success (master %s SID=%u)\n", REM_ADDR, PTS_MASTER_ADV_SID);
   }
+  pts_rx_ring_init(&g_pts_rx_ring);
+  pts_r_table_init(&g_pts_r_table);
+  pts_network_time_init();
+  pts_paired_reset();
+  g_pts_last_q = PTS_SYNC_UNLOCKED;
   (void)pts_event_gpio_init();
-  (void)pts_host_tx_init();
-  if (pts_wifi_cmd_start(PTS_WIFI_ROLE_RECEIVER, NULL, pts_rx_on_wifi_sched) != 0) {
-    LOG_PRINT("PTS wifi cmd start failed (check SSID/PSK)\n");
-  }
-  LOG_PRINT("PTS Phase6 RX%d: BLE time + Wi-Fi UDP :%u\n", PTS_RX_BOARD_ID, (unsigned)PTS_WIFI_RX_PORT);
-  LOG_PRINT("\nPTS RX%d debug GPIO ready\n", PTS_RX_BOARD_ID);
+  (void)pts_schedule_gpio_init();
+  LOG_PRINT("PTS Phase6 RX%d: BLE sync + BLE PTS6 schedule (no Wi-Fi)\n", PTS_RX_BOARD_ID);
+  sl_log_flush();
 #if BLE_AE_PERIODIC_SYNC_CANCEL
   // AE Periodic create cancel sync
   status = rsi_ble_ae_set_periodic_sync(BLE_AE_PER_SYNC_CANCEL, &ae_per_sync_create);
@@ -755,187 +791,241 @@ void ble_ae_central(void)
 #endif
 
   while (1) {
-    //! Application main loop
+    pts_sync_quality_t q;
 
-    //! checking for received events
+    pts_network_time_poll();
+    {
+      pts_sched_arm_info_t ai;
+      if (pts_schedule_gpio_take_arm_info(&ai) != 0) {
+        LOG_PRINT("RX%d BLE sched ARM cmd=%lu type=%u exec_m=%lu r_target=%lu now=%lu lead_ms=%ld%s\n",
+                  PTS_RX_BOARD_ID,
+                  (unsigned long)ai.cmd_id,
+                  (unsigned)ai.cmd_type,
+                  (unsigned long)ai.exec_m,
+                  (unsigned long)ai.r_target,
+                  (unsigned long)ai.now_at_arm,
+                  (long)ai.lead_ms,
+                  ai.late ? " LATE SKIP" : ((ai.lead_ms < 0) ? " LATE" : ""));
+      }
+    }
+    {
+      uint32_t fcmd = 0;
+      uint32_t fex  = 0;
+      uint8_t flate = 0;
+      if (pts_schedule_gpio_take_fire(&fcmd, &fex, &flate) != 0) {
+        LOG_PRINT("RX%d sched FIRE cmd=%lu exec_m=%lu%s\n",
+                  PTS_RX_BOARD_ID,
+                  (unsigned long)fcmd,
+                  (unsigned long)fex,
+                  flate ? " LATE" : "");
+      }
+    }
+    q = pts_network_time_quality();
+    if (q != g_pts_last_q) {
+      g_pts_last_q = q;
+      LOG_PRINT("PTS net quality=%s session=%lu acc=%lu rej=%lu miss=%lu\n",
+                pts_network_time_quality_name(q),
+                (unsigned long)pts_network_time_session(),
+                (unsigned long)pts_network_time_accepts(),
+                (unsigned long)pts_network_time_rejects(),
+                (unsigned long)g_pts_miss_count);
+    }
+
     temp_event_map = rsi_ble_app_get_event();
     if (temp_event_map == RSI_FAILURE) {
       osSemaphoreAcquire(ble_main_task_sem, osWaitForever);
-
-      //! if events are not received, loop will be continued
       continue;
     }
 
     switch (temp_event_map) {
       case RSI_APP_EVENT_ADV_REPORT: {
-        //! advertise report event.
-
-        //! clear the advertise report event.
         rsi_ble_app_clear_event(RSI_APP_EVENT_ADV_REPORT);
-
-        status = rsi_ble_connect(remote_addr_type, (int8_t *)remote_dev_addr);
-        if (status != RSI_SUCCESS) {
-          LOG_PRINT("connect status: 0x%lX\r\n", status);
-        }
-
       } break;
       case RSI_APP_EVENT_AE_ADV_REPORT: {
-
-        //! AE Adv Report
-
-        //! clear the event.
+        /* Ignore connect path — keep scanning for periodic sync only. */
         rsi_ble_app_clear_event(RSI_APP_EVENT_AE_ADV_REPORT);
-
-        //rsi_ble_ae_set_scan_enable_t ae_set_scan_enable = { 0 };
-        ae_set_scan_enable.enable            = RSI_BLE_STOP_SCAN;
-        ae_set_scan_enable.filter_duplicates = BLE_SCAN_ENABLE_FILTER_DUP;
-        ae_set_scan_enable.duration          = BLE_SCAN_DUR;
-        ae_set_scan_enable.period            = BLE_SCAN_PERIOD;
-        status                               = rsi_ble_ae_set_scan_enable(&ae_set_scan_enable);
-        if (status != RSI_SUCCESS) {
-          LOG_PRINT(" \n set ae scan disable failed with 0x%lX \n", status);
-        } else {
-          LOG_PRINT(" \n set ae scan diasable success \n");
+        if (!g_pts_ae_seen) {
+          g_pts_ae_seen = 1u;
+          rsi_6byte_dev_address_to_ascii((uint8_t *)remote_dev_addr, (uint8_t *)ble_app_ae_adv_report.remote_addr);
+          LOG_PRINT("ae report (no connect) %s\n", remote_dev_addr);
         }
-
-        rsi_6byte_dev_address_to_ascii((uint8_t *)remote_dev_addr, (uint8_t *)ble_app_ae_adv_report.remote_addr);
-        LOG_PRINT("\n ae report rec for %s with type %d\n", remote_dev_addr, ble_app_ae_adv_report.remote_addr_type);
-#if 0
-        rsi_delay_ms(1000);
-        device_found = 0;
-        // AE scan enable
-       // rsi_ble_ae_set_scan_enable_t ae_set_scan_enable = { 0 };
-        ae_set_scan_enable.enable                       = RSI_BLE_START_SCAN;
-        ae_set_scan_enable.filter_duplicates            = BLE_SCAN_ENABLE_FILTER_DUP;
-        ae_set_scan_enable.duration                     = BLE_SCAN_DUR;
-        ae_set_scan_enable.period                       = BLE_SCAN_PERIOD;
-        status                                          = rsi_ble_ae_set_scan_enable(&ae_set_scan_enable);
-        if (status != RSI_SUCCESS) {
-            LOG_PRINT(" \n set ae scan enable failed with 0x%lX \n", status);
-        } else
-          LOG_PRINT(" \n set ae scan enable success \n");
-#else
-
-        /**************************************************/
-        /************ Extended Create Connect *************/
-        /**************************************************/
-
-        rsi_ble_ae_extended_create_connect_t ble_extended_create_conn = { 0 };
-        uint8_t ix;
-
-        ble_extended_create_conn.own_addr_type    = LE_PUBLIC_ADDRESS;
-        ble_extended_create_conn.remote_addr_type = remote_addr_type;
-        memcpy(ble_extended_create_conn.remote_addr, (int8_t *)remote_dev_bd_addr, RSI_DEV_ADDR_LEN);
-        ble_extended_create_conn.initiator_filter_policy = ALLOW_SCAN_REQ_ANY_CONN_REQ_ANY;
-        ble_extended_create_conn.init_phys               = INITIATING_PHYS;
-
-        for (ix = 0; ix < 3; ix++) {
-          ble_extended_create_conn.init_params[ix].ScanInterval    = LE_SCAN_INTERVAL;
-          ble_extended_create_conn.init_params[ix].ScanWindow      = LE_SCAN_WINDOW;
-          ble_extended_create_conn.init_params[ix].ConnIntervalMin = CONNECTION_INTERVAL_MIN;
-          ble_extended_create_conn.init_params[ix].ConnIntervalMax = CONNECTION_INTERVAL_MAX;
-          ble_extended_create_conn.init_params[ix].ConnLatency     = CONNECTION_LATENCY;
-          ble_extended_create_conn.init_params[ix].ConnSTO         = SUPERVISION_TIMEOUT;
-          ble_extended_create_conn.init_params[ix].MinCELen        = CONNECTION_EVENT_LEN_MIN;
-          ble_extended_create_conn.init_params[ix].MaxCELen        = CONNECTION_EVENT_LEN_MAX;
-        }
-
-        LOG_PRINT("\r\n Initiating connect command \n");
-        status = rsi_ble_extended_connect_with_params(&ble_extended_create_conn);
-        if (status != RSI_SUCCESS) {
-          LOG_PRINT("connect status: 0x%lX\r\n", status);
-        } else {
-
-          osSemaphoreAcquire(ble_peripheral_conn_sem, osWaitForever);
-          temp_event_map1 = rsi_ble_app_get_event();
-
-          if ((temp_event_map1 == -1) || (!(temp_event_map1 & RSI_APP_EVENT_CONNECTED))) {
-            LOG_PRINT("\r\n Initiating connect cancel command \n");
-            status = rsi_ble_connect_cancel((int8_t *)remote_dev_bd_addr);
-            if (status != RSI_SUCCESS) {
-              LOG_PRINT("\r\n ble connect cancel cmd status = %lx \n", status);
-            } else {
-              rsi_ble_app_set_event(RSI_APP_EVENT_DISCONNECTED);
-            }
-          }
-        }
-
-#endif
-
       } break;
 
       case RSI_APP_EVENT_AE_PER_SYNC_ESTBL: {
-
-        //! Ae Periodic Sync Established event
+        LOG_PRINT("RX%d Periodic sync established\n", PTS_RX_BOARD_ID);
+        /* Stop AE scan — free RX radio for the PA train. */
+        {
+          rsi_ble_ae_set_scan_enable_t ae_scan_off = { 0 };
+          ae_scan_off.enable                       = RSI_BLE_STOP_SCAN;
+          ae_scan_off.filter_duplicates            = BLE_SCAN_ENABLE_FILTER_DUP;
+          ae_scan_off.duration                     = 0;
+          ae_scan_off.period                       = 0;
+          status                                   = rsi_ble_ae_set_scan_enable(&ae_scan_off);
+          if (status != RSI_SUCCESS) {
+            LOG_PRINT("RX%d stop AE scan failed 0x%lX\n", PTS_RX_BOARD_ID, status);
+          } else {
+            LOG_PRINT("RX%d AE scan stopped (PA sync only)\n", PTS_RX_BOARD_ID);
+          }
+        }
 #if BLE_AE_PERIODIC_SYNC_TERMIN
-        // AE Terminate Periodic sync
         rsi_ble_ae_set_periodic_adv_terminate_sync_t ae_per_sync_terminate = { 0 };
         ae_per_sync_terminate.sync_handle                                  = BLE_AE_ADV_SID;
         status = rsi_ble_ae_set_periodic_sync(BLE_AE_PER_SYNC_TERMINATE, &ae_per_sync_terminate);
-        if (status != RSI_SUCCESS) {
-          LOG_PRINT(" \n set ae periodic sync terminate failed with 0x%lX \n", status);
-        } else {
-          LOG_PRINT(" \n set ae periodic sync terminate success \n");
-        }
 #endif
-        //! clear the event.
         rsi_ble_app_clear_event(RSI_APP_EVENT_AE_PER_SYNC_ESTBL);
       } break;
 
       case RSI_APP_EVENT_AE_PER_ADV_REPORT: {
-
-        //! AE Periodic Adv Report — Phase 3: trigger seq + follow-up M
+        /* Drain ring; R[N] sampled in callback — never redefine on follow-up. */
         rsi_ble_app_clear_event(RSI_APP_EVENT_AE_PER_ADV_REPORT);
-        if (g_per_adv_report_valid) {
-          uint32_t seq = 0;
-          uint32_t fu_seq = 0;
-          uint32_t m_ticks = 0;
-          uint32_t session = 0;
-          int fu_valid = 0;
-          int8_t rssi  = g_last_per_adv_report.RSSI;
-          g_per_adv_report_valid = 0u;
-          if (pts_fu_decode(g_last_per_adv_report.data, g_last_per_adv_report.data_len,
-                            &seq, &fu_seq, &m_ticks, &fu_valid, &session) == 0) {
-            if (g_pts_have_seq) {
-              uint32_t expected = g_pts_last_seq + 1u;
-              if (seq != expected) {
-                uint32_t miss = (seq > expected) ? (seq - expected) : 1u;
-                g_pts_miss_count += miss;
-                LOG_PRINT("RX%d MISS expected=%lu got=%lu total_miss=%lu RSSI=%d\n",
+        {
+          pts_rx_slot_t slot;
+          while (pts_rx_ring_pop(&g_pts_rx_ring, &slot) == 0) {
+            uint32_t seq                           = 0;
+            uint32_t session                       = 0;
+            pts_fu_hist_entry_t hist[PTS_FU_HIST_K];
+            uint8_t hi;
+            uint32_t m_log                         = 0u;
+            int any_fu                             = 0;
+
+            if (slot.rssi < g_pts_rssi_min) {
+              g_pts_rssi_min = slot.rssi;
+            }
+            g_pts_rssi_sum += (int64_t)slot.rssi;
+            g_pts_rssi_n++;
+
+            if (pts_fu_decode(slot.data, slot.data_len, &seq, &session, hist) != 0) {
+              g_pts_decode_fail++;
+              continue;
+            }
+
+            {
+              uint32_t prev_session = pts_network_time_session();
+              pts_network_time_on_session(session);
+              if ((prev_session != 0u) && (session != prev_session)) {
+                g_pts_have_seq   = 0u;
+                g_pts_miss_count = 0u;
+                g_pts_fu_miss_r  = 0u;
+                g_pts_pairs      = 0u;
+                g_pts_fit_ok     = 0u;
+                pts_paired_reset();
+                LOG_PRINT("RX%d session %lu->%lu unlocked (reboot gate)\n",
                           PTS_RX_BOARD_ID,
-                          (unsigned long)expected,
-                          (unsigned long)seq,
-                          (unsigned long)g_pts_miss_count,
-                          rssi);
+                          (unsigned long)prev_session,
+                          (unsigned long)session);
               }
             }
-            g_pts_last_seq  = seq;
-            g_pts_have_seq  = 1u;
-            /* Delayed host frame — must not define R[N]; edge already pulsed. */
-            (void)pts_host_tx_send((uint8_t)PTS_RX_BOARD_ID, seq, rssi, fu_seq, m_ticks, fu_valid, session);
-            if ((seq % 50u) == 0u) {
-              LOG_PRINT("RX%d seq=%lu fu=%lu M=%lu RSSI=%d miss=%lu\n",
-                        PTS_RX_BOARD_ID,
-                        (unsigned long)seq,
-                        fu_valid ? (unsigned long)fu_seq : 0ul,
-                        fu_valid ? (unsigned long)m_ticks : 0ul,
-                        rssi,
-                        (unsigned long)g_pts_miss_count);
+            pts_network_time_note_rx(slot.r_ticks);
+
+            if (g_pts_have_seq) {
+              if (seq == g_pts_last_seq) {
+                /* Same AE payload re-aired — not a miss. */
+                continue;
+              }
+              {
+                uint32_t expected = g_pts_last_seq + 1u;
+                if (seq != expected) {
+                  uint32_t miss = (seq > expected) ? (seq - expected) : 1u;
+                  g_pts_miss_count += miss;
+                }
+              }
             }
-          } else {
-            LOG_PRINT("RX%d bad PTS payload len=%u RSSI=%d\n",
-                      PTS_RX_BOARD_ID,
-                      g_last_per_adv_report.data_len,
-                      rssi);
+            g_pts_last_seq = seq;
+            g_pts_have_seq = 1u;
+
+            {
+              uint32_t existing_r = 0;
+              if (pts_r_table_lookup(&g_pts_r_table, seq, &existing_r) != 0) {
+                pts_r_table_store(&g_pts_r_table, seq, slot.r_ticks);
+              }
+            }
+
+            /* Oldest hist first so dseq advances monotonically. */
+            for (hi = PTS_FU_HIST_K; hi > 0u; hi--) {
+              uint8_t idx = (uint8_t)(hi - 1u);
+              uint32_t r_fu;
+
+              if (!hist[idx].valid) {
+                continue;
+              }
+              any_fu = 1;
+              if (idx == 0u) {
+                m_log = hist[idx].m_ticks;
+              }
+              if (pts_paired_seen(hist[idx].seq)) {
+                continue;
+              }
+              if (pts_r_table_lookup(&g_pts_r_table, hist[idx].seq, &r_fu) == 0) {
+                int fit = pts_network_time_add_pair(hist[idx].seq, hist[idx].m_ticks, r_fu);
+                g_pts_pairs++;
+                pts_paired_mark(hist[idx].seq);
+                if (fit == 0) {
+                  g_pts_fit_ok++;
+                }
+              } else if (idx == 0u) {
+                /* Newest follow-up missing R — count once per packet. */
+                g_pts_fu_miss_r++;
+              }
+            }
+
+            /* PTS6 after pairs so to_local() uses this packet's fit. */
+            if (slot.data_len >= (PTS_FU_PAYLOAD_LEN + PTS_SCHED_PAYLOAD_LEN)) {
+              uint32_t cmd_id  = 0;
+              uint32_t exec_m  = 0;
+              uint8_t cmd_type = 0;
+              uint8_t st       = 0;
+              if (pts_sched_decode(&slot.data[PTS_FU_PAYLOAD_LEN],
+                                   (uint8_t)(slot.data_len - PTS_FU_PAYLOAD_LEN),
+                                   &cmd_id,
+                                   &cmd_type,
+                                   &st,
+                                   &exec_m)
+                  == 0) {
+                if ((st == PTS_SCHED_STATUS_VALID)
+                    && ((pts_network_time_quality() == PTS_SYNC_LOCKED)
+                        || (pts_network_time_quality() == PTS_SYNC_HOLDOVER))) {
+                  (void)pts_schedule_gpio_arm(cmd_id, cmd_type, exec_m);
+                }
+              }
+            }
+
+            if ((seq % 200u) == 0u) {
+              uint32_t net = 0;
+              int avg_rssi = 0;
+              (void)pts_network_time_now(&net);
+              if (g_pts_rssi_n > 0u) {
+                avg_rssi = (int)(g_pts_rssi_sum / (int64_t)g_pts_rssi_n);
+              }
+              LOG_PRINT(
+                "RX%d seq=%lu M=%lu Rdrop=%lu miss=%lu fu_miss=%lu fit_ok=%lu/%lu q=%s net=%lu rej=%lu "
+                "rpt=%lu bad=%lu inc=%lu dec=%lu rssi_min=%d avg=%d\n",
+                PTS_RX_BOARD_ID,
+                (unsigned long)seq,
+                any_fu ? (unsigned long)m_log : 0ul,
+                (unsigned long)g_pts_rx_ring.drops,
+                (unsigned long)g_pts_miss_count,
+                (unsigned long)g_pts_fu_miss_r,
+                (unsigned long)g_pts_fit_ok,
+                (unsigned long)g_pts_pairs,
+                pts_network_time_quality_name(pts_network_time_quality()),
+                (unsigned long)net,
+                (unsigned long)pts_network_time_rejects(),
+                (unsigned long)g_pts_rpt_total,
+                (unsigned long)g_pts_rpt_bad_status,
+                (unsigned long)g_pts_rpt_incomplete,
+                (unsigned long)g_pts_decode_fail,
+                (int)g_pts_rssi_min,
+                avg_rssi);
+            }
           }
         }
       } break;
 
       case RSI_APP_EVENT_AE_PER_ADV_SYNC_LOST: {
-
-        //! Ae Periodic Sync Lost event
-
-        //! clear the event.
+        /* Outage gate: model should already be holdover via poll; keep net valid. */
+        LOG_PRINT("RX%d Periodic sync LOST q=%s (holdover gate)\n",
+                  PTS_RX_BOARD_ID,
+                  pts_network_time_quality_name(pts_network_time_quality()));
         rsi_ble_app_clear_event(RSI_APP_EVENT_AE_PER_ADV_SYNC_LOST);
       } break;
 

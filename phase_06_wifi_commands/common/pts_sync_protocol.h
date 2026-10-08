@@ -24,14 +24,11 @@
 #define PTS_SYNC_PAYLOAD_LEN       12u
 #define PTS_SYNC_AD_LEN            (PTS_SYNC_PAYLOAD_LEN) /* length field + rest */
 
-/*
- * Periodic interval: N * 1.25 ms. 0x10 = 20 ms.
- * MIN == MAX on purpose: the controller then has one interval to pick, and
- * it matches the 20 ms M-sample timer on the master. A 20-25 ms window let
- * the air train and the M samples beat against each other.
- */
-#define PTS_PERIODIC_INTERVAL_MIN  0x10u
-#define PTS_PERIODIC_INTERVAL_MAX  0x10u
+/* Periodic interval: N * 1.25 ms. Fixed 30 ms PA; seq timer matched to PA.
+ * Residual ~5% air miss is RF/NWP — pairing uses K-history follow-ups. */
+#define PTS_PERIODIC_INTERVAL_MIN  0x18u /* 30 ms */
+#define PTS_PERIODIC_INTERVAL_MAX  0x18u
+#define PTS_SEQ_TIMER_MS           30u
 
 /* Master random address — receivers must sync to this (see ble_config.h REM_ADDR). */
 #define PTS_MASTER_RAND_ADDR       "11:44:33:AA:BB:CC"

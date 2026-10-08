@@ -1,20 +1,18 @@
 /**
  * @file pts_event_gpio.c
- * @brief Si917 HP GPIO pulse: BLE event reference for BG24 capture.
+ * @brief Si917 LED0 toggle: BLE event reference (Phase 4, no BG24).
  *
- * Note: WiSeConnect Periodic Adv report has no controller RX timestamp.
- * GPIO Timestamp Controller is removed on SiWG917 (GPIO_TIMESTAMP_E301).
- * Closest deterministic app-visible edge is AE report callback entry.
+ * BRD4338A LED0 = ULP_GPIO_2. Toggle (not µs pulse) for visible / LA-friendly edge.
  */
 #include "pts_event_gpio.h"
 #include "sl_si91x_driver_gpio.h"
 #include "sl_gpio_board.h"
 
 #ifndef PTS_EVENT_GPIO_PORT
-#define PTS_EVENT_GPIO_PORT SL_SI91X_GPIO_6_PORT
+#define PTS_EVENT_GPIO_PORT SL_SI91X_ULP_GPIO_2_PORT
 #endif
 #ifndef PTS_EVENT_GPIO_PIN
-#define PTS_EVENT_GPIO_PIN GPIO_PIN_NUMBER6
+#define PTS_EVENT_GPIO_PIN SL_SI91X_ULP_GPIO_2_PIN
 #endif
 
 static sl_si91x_gpio_pin_config_t s_pin_cfg = {
@@ -22,14 +20,6 @@ static sl_si91x_gpio_pin_config_t s_pin_cfg = {
   GPIO_OUTPUT
 };
 static uint8_t s_ready;
-
-/*
- * Direct HP EGPIO bit-load register. Same write sl_gpio_driver_set_pin()
- * ends in, minus NULL/port/pin validation and the port branch, so the edge
- * is as close to callback entry as the M4 can place it.
- */
-#define PTS_EVENT_BIT_LOAD \
-  (GPIO->PIN_CONFIG[((uint32_t)PTS_EVENT_GPIO_PORT * MAX_GPIO_PORT_PIN) + PTS_EVENT_GPIO_PIN].BIT_LOAD_REG)
 
 int pts_event_gpio_init(void)
 {
@@ -51,10 +41,5 @@ void pts_event_gpio_pulse(void)
   if (!s_ready) {
     return;
   }
-  /* Rising edge is the capture trigger on BG24. */
-  PTS_EVENT_BIT_LOAD = 1u;
-  /* Hold high briefly so async PRS + TIMER capture can settle. */
-  for (volatile uint32_t i = 0; i < 32u; i++) {
-  }
-  PTS_EVENT_BIT_LOAD = 0u;
+  (void)sl_gpio_driver_toggle_pin(&s_pin_cfg.port_pin);
 }

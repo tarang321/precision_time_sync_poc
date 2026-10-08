@@ -4,7 +4,6 @@
  */
 #include "pts_host_tx.h"
 #include "pts_followup_protocol.h"
-#include "pts_schedule_protocol.h"
 #include "sl_si91x_driver_gpio.h"
 #include "sl_gpio_board.h"
 
@@ -89,7 +88,11 @@ int pts_host_tx_send(uint8_t board_id, uint32_t trigger_seq, int8_t rssi,
 int pts_host_tx_send_sched(uint8_t board_id, uint32_t cmd_id, uint8_t cmd_type,
                            uint32_t exec_m, uint8_t status)
 {
-  char line[PTS_SCHED_LINE_MAX];
-  int n = pts_sched_format_line(line, sizeof(line), board_id, cmd_id, cmd_type, exec_m, status);
-  return tx_line(line, n);
+  /* Phase 6: schedule stays on-device; soft-UART path parked. */
+  (void)board_id;
+  (void)cmd_id;
+  (void)cmd_type;
+  (void)exec_m;
+  (void)status;
+  return 0;
 }

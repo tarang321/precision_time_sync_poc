@@ -1,23 +1,9 @@
 /**
  * @file pts_schedule_protocol.h
- * @brief Phase 6 future-timestamp GPIO command (roadmap scheduled-execution).
+ * @brief Phase 6: Wi-Fi command on master → BLE PTS6 AD to RX (like P5).
  *
- * Appended after the PTS4 follow-up AD on Periodic Advertising when a
- * schedule is active. Same command id is repeated; receivers execute once.
- *
- * AD (manufacturer-specific), 20 bytes:
- *   [0]      length = 19
- *   [1]      0xFF
- *   [2..3]   company id 0x02FF
- *   [4..7]   'P''T''S''5'
- *   [8..11]  command id
- *   [12]     command type (1 = GPIO toggle)
- *   [13]     status (0 = valid)
- *   [14..17] future execution network time M (SysTimer counts)
- *   [18..19] reserved
- *
- * Host line (Si917 -> BG24 UART):
- *   PTS5,<board>,<cmd_id>,<cmd_type>,<exec_m>,<status>\n
+ * AD after PTS5 follow-up on Periodic Advertising, 20 bytes, magic PTS6.
+ * cmd_type: 2=GPIO ON, 3=GPIO OFF (active-low LED1).
  */
 #ifndef PTS_SCHEDULE_PROTOCOL_H
 #define PTS_SCHEDULE_PROTOCOL_H
@@ -31,20 +17,36 @@
 #define PTS_SCHED_MAGIC0         'P'
 #define PTS_SCHED_MAGIC1         'T'
 #define PTS_SCHED_MAGIC2         'S'
-#define PTS_SCHED_MAGIC3         '5'
+#define PTS_SCHED_MAGIC3         '6'
 #define PTS_SCHED_PAYLOAD_LEN    20u
 
 #define PTS_SCHED_TYPE_GPIO_TOGGLE 1u
+#define PTS_SCHED_TYPE_GPIO_ON     2u
+#define PTS_SCHED_TYPE_GPIO_OFF    3u
 #define PTS_SCHED_STATUS_VALID     0u
 
-#define PTS_SCHED_LINE_MAX       80u
-#define PTS_SCHED_PREFIX         "PTS5"
-#define PTS_SCHED_LEAD_MS        100u
-#define PTS_SCHED_REPEAT_COUNT   4u
-/** Packets between new command starts (~500 ms at 20 ms interval). */
-#define PTS_SCHED_PERIOD_PKTS    25u
-/** Packets to wait after boot before first schedule (allow lock). */
-#define PTS_SCHED_BOOT_DELAY_PKTS 50u
+/** Lead before exec — must cover PTS6 air repeats + Wi-Fi/BLE coex + miss. */
+#define PTS_SCHED_LEAD_MS          500u
+#define PTS_SCHED_REPEAT_COUNT     8u
+
+/**
+ * Master fires at exec_m (network clock = master SysTimer). Keep 0.
+ * RX subtracts PATH_COMP from to_local() to cancel one-way (set_ae_data → RX cb).
+ * RX-early → lower PATH_COMP (fire later). RX-late → raise it.
+ * 30 ms over-corrected (RX a few ms early); 26 ms is one PA minus ~4 ms.
+ */
+#ifndef PTS_SCHED_MASTER_COMP_MS
+#define PTS_SCHED_MASTER_COMP_MS   0u
+#endif
+#ifndef PTS_SCHED_PATH_COMP_MS
+#define PTS_SCHED_PATH_COMP_MS     26u
+#endif
+
+/** ms → SysTimer ticks without uint32 overflow (freq ~180 MHz). */
+static inline uint32_t pts_ms_to_systimer_ticks(uint32_t ms, uint32_t freq_hz)
+{
+  return (uint32_t)(((uint64_t)freq_hz * (uint64_t)ms) / 1000ull);
+}
 
 static inline void pts_sched_encode(uint8_t out[PTS_SCHED_PAYLOAD_LEN],
                                     uint32_t cmd_id,
@@ -74,7 +76,8 @@ static inline void pts_sched_encode(uint8_t out[PTS_SCHED_PAYLOAD_LEN],
   out[19] = 0u;
 }
 
-static inline int pts_sched_decode(const uint8_t *data, uint8_t data_len,
+static inline int pts_sched_decode(const uint8_t *data,
+                                   uint8_t data_len,
                                    uint32_t *cmd_id,
                                    uint8_t *cmd_type,
                                    uint8_t *status,
@@ -94,56 +97,6 @@ static inline int pts_sched_decode(const uint8_t *data, uint8_t data_len,
   *status   = data[13];
   *exec_m   = (uint32_t)data[14] | ((uint32_t)data[15] << 8) | ((uint32_t)data[16] << 16)
               | ((uint32_t)data[17] << 24);
-  return 0;
-}
-
-static inline int pts_sched_format_line(char *out, size_t out_len,
-                                        uint8_t board_id,
-                                        uint32_t cmd_id,
-                                        uint8_t cmd_type,
-                                        uint32_t exec_m,
-                                        uint8_t status)
-{
-  if ((out == NULL) || (out_len < 16u)) {
-    return -1;
-  }
-  return snprintf(out, out_len, "%s,%u,%lu,%u,%lu,%u\n",
-                  PTS_SCHED_PREFIX,
-                  (unsigned)board_id,
-                  (unsigned long)cmd_id,
-                  (unsigned)cmd_type,
-                  (unsigned long)exec_m,
-                  (unsigned)status);
-}
-
-static inline int pts_sched_parse_line(const char *line,
-                                       uint8_t *board_id,
-                                       uint32_t *cmd_id,
-                                       uint8_t *cmd_type,
-                                       uint32_t *exec_m,
-                                       uint8_t *status)
-{
-  unsigned bid = 0;
-  unsigned long cid = 0;
-  unsigned ctype = 0;
-  unsigned long em = 0;
-  unsigned st = 0;
-
-  if ((line == NULL) || (board_id == NULL) || (cmd_id == NULL) || (cmd_type == NULL)
-      || (exec_m == NULL) || (status == NULL)) {
-    return -1;
-  }
-  while ((*line == ' ') || (*line == '\t')) {
-    line++;
-  }
-  if (sscanf(line, "PTS5,%u,%lu,%u,%lu,%u", &bid, &cid, &ctype, &em, &st) != 5) {
-    return -1;
-  }
-  *board_id = (uint8_t)bid;
-  *cmd_id   = (uint32_t)cid;
-  *cmd_type = (uint8_t)ctype;
-  *exec_m   = (uint32_t)em;
-  *status   = (uint8_t)st;
   return 0;
 }
 

@@ -1,6 +1,6 @@
 /**
  * @file pts_wifi_cmd.h
- * @brief Phase 6: join AP + UDP command socket (master or receiver role).
+ * @brief Phase 6: join AP + UDP command socket (master only; RX ignores).
  */
 #ifndef PTS_WIFI_CMD_H
 #define PTS_WIFI_CMD_H
@@ -17,19 +17,17 @@ typedef enum {
 } pts_wifi_role_t;
 
 /**
- * Optional: when master receives SCHED, call this to fan-out PTS6.
- * Return 0 on success. May be NULL (Linux sends PTS6 to receivers itself).
+ * Master: arm local LED1 at exec_m. Wi-Fi layer then forwards PTS6 to RX.
  */
 typedef int (*pts_wifi_fanout_fn)(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m);
 
 /**
- * Receiver: when PTS6 arrives, call this (typically UART forward to BG24).
+ * Receiver: unused in Phase 6 (BLE schedule only).
  */
 typedef void (*pts_wifi_on_sched_fn)(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m, uint8_t status);
 
 /**
- * Join AP (SSID/PSK from pts_wifi_cmd_protocol.h / sl_net_default_values.h),
- * bind UDP, start async RX. Call after sl_wifi_init() / BLE bring-up.
+ * Join AP, bind UDP, start async RX. Call after PA + seq timer are running.
  * Returns 0 on success.
  */
 int pts_wifi_cmd_start(pts_wifi_role_t role,
@@ -41,6 +39,12 @@ int pts_wifi_cmd_ready(void);
 
 /** Print IPv4 once ready (for VCOM). */
 void pts_wifi_cmd_log_ip(void);
+
+/**
+ * App-thread: stamp exec_m + arm/fanout for cmds queued from UDP CB.
+ * Call from master main loop.
+ */
+void pts_wifi_cmd_poll(void);
 
 #ifdef __cplusplus
 }

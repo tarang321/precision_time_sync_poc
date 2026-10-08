@@ -2,16 +2,15 @@
  * @file pts_wifi_cmd_protocol.h
  * @brief Phase 6 Wi-Fi command lines (ASCII over UDP).
  *
- * Linux <-> master (UDP PTS_WIFI_MASTER_PORT):
- *   TIME\\n
- *     -> TIME,<m_ticks>,<sys_timer_hz>\\n
- *   SCHED,<cmd_id>,<cmd_type>,<lead_ms>\\n
- *     -> master stamps exec_m = now + lead, replies OK,<cmd_id>,<exec_m>\\n
- *        and (optionally) fans out PTS6 to receivers
+ * Host -> master :5005
+ *   TIME
+ *   ON[,<lead_ms>]
+ *   OFF[,<lead_ms>]
+ *   SCHED,<cmd_id>,<cmd_type>,<lead_ms>   (type 2=ON 3=OFF)
+ *     -> OK,<cmd_id>,<exec_m>
  *
- * Linux/master -> receiver (UDP PTS_WIFI_RX_PORT):
- *   PTS6,<cmd_id>,<cmd_type>,<exec_m>,<status>\\n
- *     -> receiver soft-UART forwards same fields as PTS5 host line to BG24
+ * Host/master -> RX :5006
+ *   PTS6,<cmd_id>,<cmd_type>,<exec_m>,0
  */
 #ifndef PTS_WIFI_CMD_PROTOCOL_H
 #define PTS_WIFI_CMD_PROTOCOL_H
@@ -20,12 +19,13 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "pts_schedule_protocol.h"
 
-#define PTS_WIFI_MASTER_PORT  5005u
-#define PTS_WIFI_RX_PORT      5006u
-#define PTS_WIFI_LINE_MAX     96u
+#define PTS_WIFI_MASTER_PORT     5005u
+#define PTS_WIFI_RX_PORT         5006u
+#define PTS_WIFI_LINE_MAX        96u
 #define PTS_WIFI_JOIN_TIMEOUT_MS 25000u
 
 static inline int pts_wifi_format_time_reply(char *out, size_t out_len, uint32_t m, uint32_t hz)
@@ -107,6 +107,40 @@ static inline int pts_wifi_parse_sched(const char *line,
   *cmd_type = (uint8_t)ctype;
   *lead_ms  = (uint32_t)lead;
   return 0;
+}
+
+/** Parse ON / OFF / ON,<lead> / OFF,<lead>. Returns 0 ok. */
+static inline int pts_wifi_parse_onoff(const char *line, uint8_t *cmd_type, uint32_t *lead_ms)
+{
+  unsigned long lead = PTS_SCHED_LEAD_MS;
+
+  if ((line == NULL) || (cmd_type == NULL) || (lead_ms == NULL)) {
+    return -1;
+  }
+  while ((*line == ' ') || (*line == '\t')) {
+    line++;
+  }
+  if ((strncmp(line, "ON", 2) == 0) && ((line[2] == '\0') || (line[2] == ',') || isspace((unsigned char)line[2]))) {
+    *cmd_type = PTS_SCHED_TYPE_GPIO_ON;
+    if (line[2] == ',') {
+      if (sscanf(line + 3, "%lu", &lead) != 1) {
+        return -1;
+      }
+    }
+    *lead_ms = (uint32_t)lead;
+    return 0;
+  }
+  if ((strncmp(line, "OFF", 3) == 0) && ((line[3] == '\0') || (line[3] == ',') || isspace((unsigned char)line[3]))) {
+    *cmd_type = PTS_SCHED_TYPE_GPIO_OFF;
+    if (line[3] == ',') {
+      if (sscanf(line + 4, "%lu", &lead) != 1) {
+        return -1;
+      }
+    }
+    *lead_ms = (uint32_t)lead;
+    return 0;
+  }
+  return -1;
 }
 
 static inline int pts_wifi_is_time_req(const char *line)

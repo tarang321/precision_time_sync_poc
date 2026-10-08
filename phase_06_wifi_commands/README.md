@@ -1,63 +1,39 @@
-# Phase 6 — Wi-Fi command transport
+# Phase 6 — Wi-Fi command → BLE schedule
 
-**Topology:** 1× Si917 SoC master + 1× Si917 SoC receiver. **No BG24.**
+**Topology:** 1× Si917 master + 1× Si917 RX. **No BG24.**
 
-**Goal:** BLE keeps network time. Wi-Fi delivers schedule commands to the receiver. Measure GPIO schedule accuracy with Wi-Fi traffic active.
+**Motto:** Only **master** joins Wi-Fi. Host sends `ON`/`OFF` to master. Master stamps `exec_m`, arms its LED1, and airs **PTS6 on BLE PA** (same schedule path as Phase 5). RX has **no Wi-Fi** — locks on BLE and arms LED1 via `to_local(exec_m)`.
 
 ```text
-Linux PC  --UDP-->  Master :5005   TIME / SCHED
-Linux PC  --UDP-->  RX :5006       PTS6,<cmd_id>,<type>,<exec_m>,0
-Receiver            arms local schedule GPIO at exec_m
+PC --UDP ON/OFF--> Master :5005
+                     |-- arm LED1 @ exec_m (+PA like P5)
+                     +-- BLE PA: PTS5 sync + PTS6 schedule AD
+RX  <--- BLE only ---'  to_local → arm LED1
+Both fire at exec_m
 ```
 
-BLE Periodic Adv stays **PTS4 sync only** (no schedule AD required on air once Wi-Fi path is used).
+| LED | Pin | Role |
+|-----|-----|------|
+| LED0 | ULP_GPIO_2 | BT / seq edge |
+| LED1 | GPIO_10 | Scheduled ON/OFF level |
 
 ## Setup
 
-1. Edit SSID/PSK in:
-   - `master_si917/config/sl_net_default_values.h`
-   - `receiver_si917/config/sl_net_default_values.h`
-2. Flash Si917 `.rps` only (do **not** flash `bg24_capture/`).
-3. Note IPv4 from VCOM (`PTS wifi IP a.b.c.d`).
-4. Linux host on same AP/LAN.
+1. SSID/PSK in **master only**: `master_si917/config/sl_net_default_values.h`
+2. iPhone hotspot: **Maximize Compatibility** (2.4 GHz)
+3. Flash both `.rps`. PC on same hotspot as master.
+4. RX: wait `q=locked`. Master: `PTS wifi IP …`
 
-## Linux interface
+## Host
 
 ```bash
 cd phase_06_wifi_commands/host
-python3 pts_wifi_cmd.py \
-  --master 192.168.1.50 \
-  --receivers 192.168.1.51 \
-  --lead-ms 100
+python pts_wifi_cmd.py --master <master_ip> on
+python pts_wifi_cmd.py --master <master_ip> off
 ```
-
-1. `TIME` → master → `m`, SysTimer Hz  
-2. `exec_m = m + hz * lead_ms / 1000`  
-3. `PTS6,...` UDP → receiver (repeated)  
-4. RX arms schedule GPIO  
-
-### Manual UDP
-
-```bash
-echo -n 'TIME' | nc -u -w1 192.168.1.50 5005
-echo -n 'PTS6,42,1,<exec_m>,0' | nc -u -w1 192.168.1.51 5006
-```
-
-## Projects
-
-| Role | Project | Flash |
-|------|---------|-------|
-| Master | `master_si917/pts_master_si917_p6.slcp` | `.rps` |
-| Receiver | `receiver_si917/pts_receiver_si917_p6.slcp` | `.rps` |
-
-**Parked:** `bg24_capture/` (UART→BG24 schedule path unused).
 
 ## Exit criteria
 
-- [ ] Both Si917s join AP; VCOM shows IP + UDP port
-- [ ] `TIME` / `PTS6` → RX schedule GPIO edge
-- [ ] LA accuracy with Wi-Fi traffic vs Phase 5
-
-## Trade-off
-
-UDP is lossy; script repeats. Wi-Fi/BLE coexistence on the same Si917 is intentional load for Phase 6/7.
+- [ ] Master joins AP; RX does **not** attempt Wi-Fi
+- [ ] `on`/`off` → both LED1 same level after lead
+- [ ] LA LED1 edges under Wi-Fi+BLE coex on master
