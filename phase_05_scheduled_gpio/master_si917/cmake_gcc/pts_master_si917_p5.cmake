@@ -128,6 +128,8 @@ add_library(slc OBJECT
     "${SDK_PATH}/platform_core/platform/service/sl_main/src/sl_main_init_memory.c"
     "${SDK_PATH}/platform_core/platform/service/sl_main/src/sl_main_kernel.c"
     "../../common/pts_debug_gpio.c"
+    "../../common/pts_schedule_gpio.c"
+    "../../common/pts_network_time.c"
     "../app.c"
     "../autogen/sl_event_handler.c"
     "../autogen/sl_iostream_handles.c"

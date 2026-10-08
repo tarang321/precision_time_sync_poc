@@ -1,19 +1,18 @@
 /**
  * @file pts_debug_gpio.c
- * @brief Si917 HP GPIO toggle for Phase 1 LA measurement.
+ * @brief Si917 LED0 toggle for Phase 4 master edge.
  *
- * Default: GPIO6 (PORT A) — remappable via PTS_DEBUG_GPIO_PORT / PTS_DEBUG_GPIO_PIN.
- * API from WiSeConnect sl_si91x_gpio_example (sl_gpio_driver_toggle_pin).
+ * BRD4338A LED0 = ULP_GPIO_2.
  */
 #include "pts_debug_gpio.h"
 #include "sl_si91x_driver_gpio.h"
 #include "sl_gpio_board.h"
 
 #ifndef PTS_DEBUG_GPIO_PORT
-#define PTS_DEBUG_GPIO_PORT SL_SI91X_GPIO_6_PORT
+#define PTS_DEBUG_GPIO_PORT SL_SI91X_ULP_GPIO_2_PORT
 #endif
 #ifndef PTS_DEBUG_GPIO_PIN
-#define PTS_DEBUG_GPIO_PIN GPIO_PIN_NUMBER6
+#define PTS_DEBUG_GPIO_PIN SL_SI91X_ULP_GPIO_2_PIN
 #endif
 
 static sl_si91x_gpio_pin_config_t s_pin_cfg = { { PTS_DEBUG_GPIO_PORT, PTS_DEBUG_GPIO_PIN }, GPIO_OUTPUT };

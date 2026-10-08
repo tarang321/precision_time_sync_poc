@@ -68,37 +68,71 @@
 static uint32_t g_pts_seq;
 static uint8_t g_pts_periodic_payload[PTS_FU_PAYLOAD_LEN];
 static osTimerId_t g_pts_seq_timer;
-static uint32_t g_pts_m_ticks;
-static uint8_t g_pts_have_m;
+static uint32_t g_pts_m_hist[PTS_FU_HIST_K];
+static uint8_t g_pts_m_hist_valid;
+static uint8_t g_pts_m_hist_count;
 static uint32_t g_pts_session;
+static volatile uint8_t g_pts_seq_busy;
+static uint32_t g_pts_push_ok;
+static uint32_t g_pts_push_fail;
+static uint32_t g_pts_m_ticks;
 
 static void rsi_ble_app_set_event(uint32_t event_num);
 
-/** Sample M at the firmware boundary, then encode trigger N plus follow-up of previous. */
-static void pts_master_build_payload(void)
+/** Sample M at firmware boundary; encode N plus K-history of prior M. */
+static void pts_master_build_payload(uint32_t seq)
 {
-  uint32_t prev_m   = g_pts_m_ticks;
-  uint32_t prev_seq = (g_pts_seq == 0u) ? 0u : (g_pts_seq - 1u);
-  int fu_valid      = (g_pts_have_m && (g_pts_seq > 0u)) ? 1 : 0;
+  uint32_t hist_m[PTS_FU_HIST_K];
+  uint8_t mask = 0u;
+  uint8_t i;
 
   if (g_pts_session == 0u) {
     g_pts_session = osKernelGetSysTimerCount() | 1u;
   }
   g_pts_m_ticks = osKernelGetSysTimerCount();
-  g_pts_have_m  = 1u;
-  pts_fu_encode(g_pts_periodic_payload, g_pts_seq, prev_seq, prev_m, fu_valid, g_pts_session);
+
+  for (i = 0u; i < PTS_FU_HIST_K; i++) {
+    hist_m[i] = 0u;
+    if ((i < g_pts_m_hist_count) && ((g_pts_m_hist_valid & (uint8_t)(1u << i)) != 0u)) {
+      hist_m[i] = g_pts_m_hist[i];
+      mask |= (uint8_t)(1u << i);
+    }
+  }
+  pts_fu_encode(g_pts_periodic_payload, seq, hist_m, mask, g_pts_session);
+}
+
+/** After successful push of seq, shift history and insert this M at index 0. */
+static void pts_master_commit_hist(void)
+{
+  uint8_t i;
+  for (i = PTS_FU_HIST_K - 1u; i > 0u; i--) {
+    g_pts_m_hist[i] = g_pts_m_hist[i - 1u];
+  }
+  g_pts_m_hist[0]      = g_pts_m_ticks;
+  g_pts_m_hist_valid   = (uint8_t)(((g_pts_m_hist_valid << 1) | 1u) & ((1u << PTS_FU_HIST_K) - 1u));
+  if (g_pts_m_hist_count < PTS_FU_HIST_K) {
+    g_pts_m_hist_count++;
+  }
 }
 
 static int32_t pts_master_push_periodic_data(void)
 {
   rsi_ble_ae_data_t ble_ae_data = { 0 };
-  ble_ae_data.type              = BLE_AE_PERIODIC_ADV_DATA_TYPE;
-  ble_ae_data.adv_handle        = BLE_ADV_HNDL1;
-  ble_ae_data.operation         = 0x03;
-  ble_ae_data.frag_pref         = 0x00;
-  ble_ae_data.data_len          = PTS_FU_PAYLOAD_LEN;
+  int32_t status;
+
+  ble_ae_data.type       = BLE_AE_PERIODIC_ADV_DATA_TYPE;
+  ble_ae_data.adv_handle = BLE_ADV_HNDL1;
+  ble_ae_data.operation  = 0x03;
+  ble_ae_data.frag_pref  = 0x00;
+  ble_ae_data.data_len   = PTS_FU_PAYLOAD_LEN;
   memcpy(ble_ae_data.data, g_pts_periodic_payload, ble_ae_data.data_len);
-  return rsi_ble_set_ae_data(&ble_ae_data);
+  status = rsi_ble_set_ae_data(&ble_ae_data);
+  if (status == RSI_SUCCESS) {
+    g_pts_push_ok++;
+  } else {
+    g_pts_push_fail++;
+  }
+  return status;
 }
 
 static void pts_seq_timer_cb(void *argument)
@@ -125,7 +159,11 @@ uint8_t ble_acceptlist_addr1[BLE_ACCEPT_LIST_ADDR_LEN] = { 0xDA, 0x81, 0xE0, 0xB
 /*=======================================================================*/
 //!    Application powersave configurations
 /*=======================================================================*/
-#define ENABLE_NWP_POWER_SAVE 1 //! Set to 1 for powersave mode
+#define ENABLE_NWP_POWER_SAVE 0 //! Set to 1 for powersave mode
+/* RF experiment: 1 = SL_SI91X_BLE_MODE (may need bt_stack_bypass). Default 0. */
+#ifndef PTS_COEX_BLE_ONLY
+#define PTS_COEX_BLE_ONLY 0
+#endif
 
 #if ENABLE_NWP_POWER_SAVE
 //! Power Save Profile Mode
@@ -156,7 +194,11 @@ static const sl_wifi_device_configuration_t
              .region_code = US,
              .boot_config = {
                .oper_mode = SL_SI91X_CLIENT_MODE,
+#if PTS_COEX_BLE_ONLY
+               .coex_mode = SL_SI91X_BLE_MODE,
+#else
                .coex_mode = SL_SI91X_WLAN_BLE_MODE,
+#endif
 #ifdef SLI_SI91X_MCU_INTERFACE
                .feature_bit_map = (SL_SI91X_FEAT_WPS_DISABLE | SL_SI91X_FEAT_ULP_GPIO_BASED_HANDSHAKE
                                    | SL_SI91X_FEAT_DEV_TO_HOST_ULP_GPIO_1),
@@ -542,7 +584,10 @@ void rsi_ble_peripheral(void)
     LOG_PRINT("set ae Periodic adv params failed with 0x%lX\n", status);
     return;
   } else {
-    LOG_PRINT("set ae periodic adv params success (interval ~20-25 ms)\n");
+    LOG_PRINT("set ae periodic adv params success (PA %u-%u ×1.25ms, seq %ums)\n",
+              (unsigned)PTS_PERIODIC_INTERVAL_MIN,
+              (unsigned)PTS_PERIODIC_INTERVAL_MAX,
+              (unsigned)PTS_SEQ_TIMER_MS);
   }
 #endif
 
@@ -585,13 +630,18 @@ void rsi_ble_peripheral(void)
   }
 
 #if PERIODIC_ADV_EN
-  g_pts_seq = 0;
-  pts_master_build_payload();
+  g_pts_seq            = 0;
+  g_pts_m_hist_count   = 0u;
+  g_pts_m_hist_valid   = 0u;
+  g_pts_push_ok        = 0u;
+  g_pts_push_fail      = 0u;
+  pts_master_build_payload(g_pts_seq);
   status = pts_master_push_periodic_data();
   if (status != RSI_SUCCESS) {
     LOG_PRINT("set periodic adv data failed with 0x%lX\n", status);
     return;
   } else {
+    pts_master_commit_hist();
     LOG_PRINT("set periodic adv data success (seq=%lu)\n", (unsigned long)g_pts_seq);
   }
 #else
@@ -657,9 +707,9 @@ void rsi_ble_peripheral(void)
   }
   g_pts_seq_timer = osTimerNew(pts_seq_timer_cb, osTimerPeriodic, NULL, NULL);
   if (g_pts_seq_timer != NULL) {
-    /* ~20 ms assuming 1 ms RTOS tick */
-    (void)osTimerStart(g_pts_seq_timer, 20U);
-    LOG_PRINT("PTS seq refresh timer started (20 ms)\n");
+    /* Match fixed PA interval — one seq per air event (avoids RX gaps). */
+    (void)osTimerStart(g_pts_seq_timer, PTS_SEQ_TIMER_MS);
+    LOG_PRINT("PTS seq refresh timer started (%u ms, PA fixed)\n", (unsigned)PTS_SEQ_TIMER_MS);
   } else {
     LOG_PRINT("PTS seq refresh timer create failed\n");
   }
@@ -817,18 +867,30 @@ void rsi_ble_peripheral(void)
       case RSI_APP_EVENT_PTS_SEQ_UPDATE: {
         rsi_ble_app_clear_event(RSI_APP_EVENT_PTS_SEQ_UPDATE);
 #if PERIODIC_ADV_EN
-        g_pts_seq++;
-        pts_master_build_payload();
-        status = pts_master_push_periodic_data();
-        if (status != RSI_SUCCESS) {
-          LOG_PRINT("PTS seq update failed 0x%lX seq=%lu\n", status, (unsigned long)g_pts_seq);
-        } else if ((g_pts_seq % 50u) == 0u) {
-          LOG_PRINT("PTS master seq=%lu M=%lu session=%lu\n",
-                    (unsigned long)g_pts_seq,
-                    (unsigned long)g_pts_m_ticks,
-                    (unsigned long)g_pts_session);
+        /* One push per tick; never stack increments (that skips seq on air). */
+        if (g_pts_seq_busy == 0u) {
+          uint32_t next_seq;
+          g_pts_seq_busy = 1u;
+          next_seq       = g_pts_seq + 1u;
+          pts_master_build_payload(next_seq);
+          status = pts_master_push_periodic_data();
+          if (status != RSI_SUCCESS) {
+            LOG_PRINT("PTS seq update failed 0x%lX next=%lu\n", status, (unsigned long)next_seq);
+          } else {
+            g_pts_seq = next_seq;
+            pts_master_commit_hist();
+            pts_debug_gpio_toggle();
+            if ((g_pts_seq % 200u) == 0u) {
+              LOG_PRINT("PTS master seq=%lu M=%lu session=%lu push_ok=%lu fail=%lu\n",
+                        (unsigned long)g_pts_seq,
+                        (unsigned long)g_pts_m_ticks,
+                        (unsigned long)g_pts_session,
+                        (unsigned long)g_pts_push_ok,
+                        (unsigned long)g_pts_push_fail);
+            }
+          }
+          g_pts_seq_busy = 0u;
         }
-        pts_debug_gpio_toggle();
 #endif
       } break;
     }

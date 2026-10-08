@@ -2,20 +2,31 @@
 
 **Topology:** 1× Si917 SoC master + 1× Si917 SoC receiver. **No BG24.**
 
-**Goal:** Receive a future network timestamp, convert to local schedule, toggle a demo GPIO from the timer path — not from the BLE receive path.
+**Goal:** Receive a future network timestamp, convert to local schedule, toggle demo GPIO (LED0) from a timer thread — not from the BLE receive path.
 
 ```text
-Master:   PA carries PTS4 sync + PTS5 schedule (exec_m ≈ now + 100 ms)
-Receiver: keep Phase 4 clock model; arm local compare/schedule; toggle GPIO
+Master:   PA = PTS5 sync + PTS6 schedule; arm LED1 at exec_m (M == SysTimer)
+Receiver: lock → convert exec_m → local R; arm LED1 at same network time
 ```
+
+Both boards pulse **LED1** (idle high → low pulse) at the same network time.
+Master adds +1 PA (~30 ms) on local arm so push-time M matches air-time R.
+
+| LED | Pin | Role |
+|-----|-----|------|
+| LED0 | ULP_GPIO_2 | BT / PA / seq edge only |
+| LED1 | HP GPIO_10 | Schedule pulse (both boards, same polarity) |
 
 Same `cmd_id` executes once.
 
-## Schedule command
+## Packets
 
-Magic `PTS5`. Fields: `cmd_id`, `cmd_type` (1 = GPIO toggle), `status`, `exec_m`.
+| AD | Magic | Role |
+|----|-------|------|
+| Sync / follow-up | `PTS5` (33 B) | K=4 M history + session (from P4 hard-pass) |
+| Schedule | `PTS6` (20 B) | `cmd_id`, type=GPIO toggle, `exec_m` |
 
-Master emits with ~100 ms lead after RX can lock.
+Master appends PTS6 for 4 PA events per command, every ~25 packets (~750 ms at 30 ms).
 
 ## Projects
 
@@ -26,18 +37,19 @@ Master emits with ~100 ms lead after RX can lock.
 
 **Parked:** `bg24_capture/`.
 
-LA: probe RX schedule GPIO (and optionally master GPIO6). Common GND. No PC02.
+LA: probe RX LED0 (BT) + LED1 (schedule). Optionally master LED0. Common GND.
 
 ## Exit criteria
 
-- [ ] Master log: `PTS sched cmd=... exec_m=...`
-- [ ] RX log: arm then GPIO edge at schedule
+- [ ] Master: `PTS sched cmd=...` + `master sched FIRE` (LED1)
+- [ ] RX: `sched ARM` then `sched FIRE` (~100 ms); LED1
+- [ ] LA: both LED1 edges align (target &lt; 200 µs)
 - [ ] Duplicate `cmd_id` does not re-arm
-- [ ] LA schedule accuracy vs lead / master reference (target &lt; 200 µs)
+- [ ] Lock quality holds while scheduling
 
 ## References
 
 | Used for | Reference |
 |----------|-----------|
 | Roadmap Phase 5 | [Roadmap](../BLE_Time_Synchronization_POC_Roadmap(2).md) |
-| Network time | Phase 4 |
+| Network time | Phase 4 hard-pass |

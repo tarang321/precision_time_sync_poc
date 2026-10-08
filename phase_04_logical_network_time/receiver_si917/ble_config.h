@@ -61,7 +61,8 @@
 #define RSI_BLE_ADV_DIR_ADDR      "00:15:83:6A:64:17"
 #define BLE_AE_ADV_SID            0x00
 #define BLE_AE_ADV_SKIP           0x00
-#define BLE_AE_SYNC_TIMOUT        0x30
+/* Units of 10 ms. Longer than brief RF outage so holdover can run before sync lost. */
+#define BLE_AE_SYNC_TIMOUT        0xC0 /* 1.92 s */
 
 #define RSI_BLE_ADV_INT_MIN     0x100
 #define RSI_BLE_ADV_INT_MAX     0x200

@@ -8,7 +8,7 @@
 Network time = M0 + (rate_num / rate_den) × (local_now − R0)
 ```
 
-`M` and `R` are both Si917 SysTimer (or chosen local) counts in this topology. `rate_num/rate_den` is the smoothed ratio. New master session id clears the fit.
+`M` and `R` are both Si917 SysTimer counts. `rate_num/rate_den` is the long-baseline smoothed ratio. New master session id clears the fit.
 
 ## Model
 
@@ -17,13 +17,13 @@ Network time = M0 + (rate_num / rate_den) × (local_now − R0)
 | unlocked | No anchor, or session just changed |
 | acquiring | One pair stored, rate not set |
 | locked | Rate accepted; `pts_network_time_now()` valid |
-| holdover | No accepted pair for ~eight intervals; still extrapolates |
+| holdover | No RX activity for ~32 intervals; still extrapolates |
 
-Reject samples when deltas are not forward, seq does not advance, or ratio is far off the smoothed rate.
+Reject samples when deltas are not forward, seq does not advance, or ratio is far off the smoothed rate. Rate fits use a ~1 s baseline (`PTS_NT_RATE_MIN_DSEQ=32`) so M-sample jitter stays small.
 
 ## Packet
 
-Phase 3 layout plus session id. Magic `PTS4`.
+Magic `PTS5`, 33 bytes. Trigger seq N + session + M[N-1]..M[N-4] + valid_mask. A pair needs `R[k]` (from hearing trigger k) and `M[k]` from any later packet’s history — survives up to 3 lost follow-up carriers.
 
 ## Projects
 
@@ -32,13 +32,36 @@ Phase 3 layout plus session id. Magic `PTS4`.
 | Master | `master_si917/pts_master_si917_p4.slcp` | `.rps` |
 | Receiver | `receiver_si917/pts_receiver_si917_p4.slcp` | `.rps` |
 
-**Parked:** `bg24_capture/`.
+**Parked:** `bg24_capture/` (model lives on RX Si917: `common/pts_network_time.*`).
 
-## Exit criteria
+## Air / seq pacing
 
-- [ ] RX reaches `quality=locked`
-- [ ] Session change clears model
-- [ ] Holdover then re-lock after brief miss
+PA fixed **30 ms** (`0x18`); seq timer **30 ms**; seq commits only after successful `set_ae_data`; RX ignores duplicate seq. ~5% raw `miss/seq` on this bench is RF/NWP (BLE PA has no retransmission). Pairing uses K=4 history so effective pair loss (`fu_miss`) should stay near 0.
+
+## Loss instrumentation (every 200 seq)
+
+RX line includes: `rpt` (reports), `bad` (callback status≠0), `inc` (data_status incomplete), `dec` (decode fail), `rssi_min` / `avg`.
+
+| Pattern | Meaning |
+|---------|---------|
+| High `dec` / `inc` | Truncated or corrupt payload |
+| Clean reports, high `miss` | Packet never received (RF / radio schedule) |
+| `rpt` rate ≪ 33/s | RX skipping PA events |
+
+Master logs `push_ok` / `fail` every 200 seq.
+
+## RF experiments (if miss stays high and counters show real loss)
+
+1. Bring boards closer / fix orientation; keep TX 18 dBm.
+2. Optional: set `PTS_COEX_BLE_ONLY` to `1` in both `app.c` files — **hypothesis only**; SDK notes BLE-only may require `bt_stack_bypass`. Revert if boot/AE fails.
+
+## Exit criteria (hard)
+
+- [ ] `quality=locked` ≥2 min (no holdover spam)
+- [ ] Every 200 seq: `Rdrop=0`, `fit_ok/pairs` ≥ 0.95, `rej/pairs` ≤ 0.02, **`fu_miss/seq` ≤ 0.01**
+- [ ] Raw air loss `miss/seq` reported as RF metric; bench target < 0.05 (not a hard 0)
+- [ ] Master reboot → `session A->B unlocked (reboot gate)` then re-lock
+- [ ] Brief RF block → `q=holdover` / sync LOST holdover gate; clear → locked
 
 ## References
 

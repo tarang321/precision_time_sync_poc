@@ -9,6 +9,8 @@ description: |
 source:
 - path: app.c
 - path: ../common/pts_debug_gpio.c
+- path: ../common/pts_schedule_gpio.c
+- path: ../common/pts_network_time.c
 include:
 - path: .
   file_list:
@@ -19,6 +21,9 @@ include:
   - path: pts_sync_protocol.h
   - path: pts_followup_protocol.h
   - path: pts_debug_gpio.h
+  - path: pts_schedule_gpio.h
+  - path: pts_schedule_protocol.h
+  - path: pts_network_time.h
 define:
 - name: SL_SI91X_PRINT_DBG_LOG
 component:

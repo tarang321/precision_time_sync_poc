@@ -4,12 +4,12 @@ quality: evaluation
 label: PTS Phase4 Receiver Si917 (SoC)
 category: Example|BLE
 description: |
-  Precision Time Sync POC Phase 3 — Si917 receiver pulses the event GPIO
-  and forwards trigger seq plus follow-up M to BG24.
+  Precision Time Sync POC Phase 4 — Si917 receiver samples R[N], pairs M[N],
+  and owns logical network time (no BG24).
 source:
 - path: app.c
 - path: ../common/pts_event_gpio.c
-- path: ../common/pts_host_tx.c
+- path: ../common/pts_network_time.c
 include:
 - path: .
   file_list:
@@ -18,7 +18,9 @@ include:
 - path: ../common
   file_list:
   - path: pts_event_gpio.h
-  - path: pts_host_tx.h
+  - path: pts_network_time.h
+  - path: pts_rx_ring.h
+  - path: pts_r_table.h
   - path: pts_followup_protocol.h
   - path: pts_sync_protocol.h
 define:
