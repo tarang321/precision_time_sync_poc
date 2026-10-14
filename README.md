@@ -35,7 +35,7 @@ precision_time_sync_poc/
   phase_07_stress_validation/      # Stress; reuse Phase 6 Si917 firmware
 ```
 
-LA: master GPIO6 vs RX GPIO6 (P1+); RX schedule GPIO from P5.
+LA: master LED0 vs RX LED0 (`ULP_GPIO_2`, P1+); RX schedule LED1 from P5.
 
 ## Phase index
 

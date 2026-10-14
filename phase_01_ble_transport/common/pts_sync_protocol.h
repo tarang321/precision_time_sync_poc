@@ -57,7 +57,10 @@ static inline int pts_sync_decode(const uint8_t *data, uint8_t data_len, uint32_
   if ((data == NULL) || (seq_out == NULL) || (data_len < PTS_SYNC_PAYLOAD_LEN)) {
     return -1;
   }
-  if ((data[1] != PTS_SYNC_AD_TYPE) || (data[4] != PTS_SYNC_MAGIC0) || (data[5] != PTS_SYNC_MAGIC1)
+  if ((data[0] != (uint8_t)(PTS_SYNC_PAYLOAD_LEN - 1u)) || (data[1] != PTS_SYNC_AD_TYPE)
+      || (data[2] != (uint8_t)(PTS_SYNC_COMPANY_ID & 0xFFu))
+      || (data[3] != (uint8_t)((PTS_SYNC_COMPANY_ID >> 8) & 0xFFu))
+      || (data[4] != PTS_SYNC_MAGIC0) || (data[5] != PTS_SYNC_MAGIC1)
       || (data[6] != PTS_SYNC_MAGIC2) || (data[7] != PTS_SYNC_MAGIC3)) {
     return -1;
   }

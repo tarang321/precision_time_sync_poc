@@ -10,7 +10,7 @@ Receiver: lock → convert exec_m → local R; arm LED1 at same network time
 ```
 
 Both boards pulse **LED1** (idle high → low pulse) at the same network time.
-Master adds +1 PA (~30 ms) on local arm so push-time M matches air-time R.
+Master adds `PTS_SCHED_MASTER_COMP_MS` (default **7 ms**, LA-tuned) on local arm so push-time M matches air-time R.
 
 | LED | Pin | Role |
 |-----|-----|------|

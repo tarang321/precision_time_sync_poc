@@ -17,10 +17,11 @@
 
 ```text
 AE report N → sample R[N] (osKernelGetSysTimerCount or equiv)
-            → toggle ULP_GPIO6 (EXP16)   [PTS_GPIO_SANITY_TOGGLE=0]
+            → toggle LED0 / ULP_GPIO_2   [PTS_GPIO_SANITY_TOGGLE=0]
             → log seq ↔ R
 
-Sanity (default): PTS_GPIO_SANITY_TOGGLE=1 → free-run ~2 Hz on EXP16, no BLE.
+Sanity (opt-in): set PTS_GPIO_SANITY_TOGGLE=1 → free-run ~2 Hz on LED0, no BLE.
+Default in pts_event_gpio.h is 0 (AE path).
 ```
 
 Constraints (unchanged):
@@ -33,16 +34,16 @@ Constraints (unchanged):
 
 | Signal | Board | Notes |
 |--------|-------|-------|
-| Event edge | RX **EXP16** (`ULP_GPIO_6`) | Toggle (not µs pulse) |
-| Optional | Master breakout P19 / GPIO6 | Phase 1 baseline |
+| Event edge | RX **LED0** (`ULP_GPIO_2`) | Toggle (not µs pulse) |
+| Optional | Master LED0 | Phase 1 baseline |
 | GND | EXP1 or nearby | Required |
 
 ## Exit criteria
 
-- [ ] Sanity: EXP16 toggles ~2 Hz with `PTS_GPIO_SANITY_TOGGLE=1` (no master)
-- [ ] Phase2: set `PTS_GPIO_SANITY_TOGGLE=0`; toggle on each AE report
+- [ ] Sanity (optional): LED0 toggles ~2 Hz with `PTS_GPIO_SANITY_TOGGLE=1` (no master)
+- [ ] Phase2: `PTS_GPIO_SANITY_TOGGLE=0`; toggle on each AE report
 - [ ] Logs show `seq` ↔ `R[N]` (SysTimer ticks, every 10 seq)
-- [ ] LA optional: EXP16 edges align with report cadence (~20 ms)
+- [ ] LA optional: LED0 edges align with report cadence (~20 ms)
 - [ ] No dependency on BG24 / UART identity path
 
 ## Flash

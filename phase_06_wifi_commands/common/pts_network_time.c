@@ -26,6 +26,10 @@
 #ifndef PTS_NT_RESID_DIV
 #define PTS_NT_RESID_DIV 4
 #endif
+/* Sustained residual fails while "locked" → demote (blocks bad to_local). */
+#ifndef PTS_NT_REJECT_STREAK_DEMOTE
+#define PTS_NT_REJECT_STREAK_DEMOTE 8u
+#endif
 
 static uint32_t s_session;
 static uint8_t s_have_session;
@@ -38,13 +42,13 @@ static uint32_t s_rate_m0;
 static uint32_t s_rate_r0;
 static uint32_t s_rate_seq0;
 static uint32_t s_last_seq;
-static uint32_t s_last_pair_r;
 static uint32_t s_last_rx_r;
 static int64_t s_last_dr;
 static int64_t s_rate_num;
 static int64_t s_rate_den;
 static uint32_t s_rejects;
 static uint32_t s_accepts;
+static uint32_t s_reject_streak;
 static pts_sync_quality_t s_quality;
 
 /** Unsigned 32-bit difference as non-negative int64 (wrap-safe). */
@@ -78,6 +82,30 @@ static void set_quality(pts_sync_quality_t q)
   s_quality = q;
 }
 
+static void note_accept(void)
+{
+  s_reject_streak = 0u;
+  s_accepts++;
+}
+
+static void note_reject(uint8_t residual)
+{
+  s_rejects++;
+  if (!residual) {
+    return;
+  }
+  s_reject_streak++;
+  if ((s_reject_streak >= PTS_NT_REJECT_STREAK_DEMOTE)
+      && ((s_quality == PTS_SYNC_LOCKED) || (s_quality == PTS_SYNC_HOLDOVER))) {
+    /* Poisoned rate — force full re-acquire before to_local/schedule. */
+    s_rate_confirmed = 0u;
+    s_have_rate      = 0u;
+    s_rate_num       = 0;
+    s_rate_den       = 1;
+    set_quality(PTS_SYNC_ACQUIRING);
+  }
+}
+
 static void renorm(void)
 {
   while ((s_rate_num > 0x3FFFFFFF) || (s_rate_den > 0x3FFFFFFF)) {
@@ -94,7 +122,6 @@ static void slide_offset(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
   s_offset_m    = m_ticks;
   s_offset_r    = r_ticks;
   s_last_seq    = seq;
-  s_last_pair_r = r_ticks;
   s_last_rx_r   = r_ticks;
 }
 
@@ -129,9 +156,10 @@ void pts_network_time_init(void)
   s_rate_confirmed  = 0u;
   s_rate_num        = 0;
   s_rate_den     = 1;
-  s_rejects      = 0u;
-  s_accepts      = 0u;
-  s_last_dr      = 0;
+  s_rejects         = 0u;
+  s_accepts         = 0u;
+  s_reject_streak   = 0u;
+  s_last_dr         = 0;
   s_session      = 0u;
   s_offset_m     = 0u;
   s_offset_r     = 0u;
@@ -139,7 +167,6 @@ void pts_network_time_init(void)
   s_rate_r0      = 0u;
   s_rate_seq0    = 0u;
   s_last_seq     = 0u;
-  s_last_pair_r  = 0u;
   s_last_rx_r    = 0u;
 }
 
@@ -156,7 +183,9 @@ void pts_network_time_on_session(uint32_t session)
   s_last_dr        = 0;
   s_rate_num     = 0;
   s_rate_den     = 1;
-  s_accepts      = 0u;
+  s_accepts       = 0u;
+  s_rejects       = 0u;
+  s_reject_streak = 0u;
   set_quality(PTS_SYNC_UNLOCKED);
 }
 
@@ -182,21 +211,21 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
     s_rate_r0     = r_ticks;
     s_rate_seq0   = seq;
     s_have_anchor = 1u;
-    s_accepts++;
+    note_accept();
     set_quality(PTS_SYNC_ACQUIRING);
     return 0;
   }
 
   dseq = (int32_t)(seq - s_last_seq);
   if (dseq <= 0) {
-    s_rejects++;
+    note_reject(0u); /* out-of-order / dup — do not demote lock */
     return -1;
   }
 
   dm = u32_delta(m_ticks, s_offset_m);
   dr = u32_delta(r_ticks, s_offset_r);
   if ((dm <= 0) || (dr <= 0)) {
-    s_rejects++;
+    note_reject(0u);
     return -1;
   }
 
@@ -206,7 +235,7 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
     int64_t dr_r      = u32_delta(r_ticks, s_rate_r0);
 
     if ((dseq_rate <= 0) || (dm_r <= 0) || (dr_r <= 0)) {
-      s_rejects++;
+      note_reject(0u);
       return -1;
     }
     s_rate_num  = dm_r;
@@ -215,7 +244,7 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
     s_have_rate = 1u;
     slide_offset(seq, m_ticks, r_ticks);
     s_last_dr = dr;
-    s_accepts++;
+    note_accept();
     if (dseq_rate >= (int32_t)PTS_NT_RATE_MIN_DSEQ) {
       s_rate_confirmed = 1u;
       set_quality(PTS_SYNC_LOCKED);
@@ -232,12 +261,13 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
 
     if ((dseq_rate >= (int32_t)PTS_NT_RATE_MIN_DSEQ) && (dm_r > 0) && (dr_r > 0)) {
       if (!residual_ok(dm_r, dr_r)) {
-        s_rejects++;
+        note_reject(1u);
         if (!s_rate_confirmed) {
           /* 30 ms seed was junk — replace with this ~1 s window. */
           s_rate_num   = dm_r;
           s_rate_den   = dr_r;
           renorm();
+          s_have_rate  = 1u;
           s_rate_m0    = m_ticks;
           s_rate_r0    = r_ticks;
           s_rate_seq0  = seq;
@@ -259,7 +289,7 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
       s_rate_confirmed = 1u;
     } else {
       if (!residual_ok(dm, dr)) {
-        s_rejects++;
+        note_reject(1u);
         return -1;
       }
     }
@@ -267,7 +297,7 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
 
   slide_offset(seq, m_ticks, r_ticks);
   s_last_dr = dr;
-  s_accepts++;
+  note_accept();
   if (s_rate_confirmed) {
     set_quality(PTS_SYNC_LOCKED);
   } else {

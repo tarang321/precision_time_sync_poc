@@ -124,6 +124,7 @@ static uint32_t g_pts_miss_count;
 static uint32_t g_pts_rx_ok;
 static uint32_t g_pts_pairs;
 static uint32_t g_pts_fu_miss_r;
+static uint32_t g_pts_last_paired_fu = PTS_FU_SEQ_NONE;
 static uint8_t g_pts_have_seq;
 static uint8_t device_found          = 0;
 static uint8_t remote_dev_bd_addr[6] = { 0 };
@@ -516,7 +517,8 @@ void ble_ae_central(void)
   g_pts_have_seq   = 0u;
   g_pts_miss_count = 0u;
   g_pts_rx_ok      = 0u;
-  g_pts_pairs      = 0u;
+  g_pts_pairs          = 0u;
+  g_pts_last_paired_fu = PTS_FU_SEQ_NONE;
   g_pts_fu_miss_r  = 0u;
   g_pts_last_seq   = 0u;
 
@@ -857,9 +859,10 @@ void ble_ae_central(void)
               }
             }
 
-            if (fu_valid) {
+            if (fu_valid && (fu_seq != g_pts_last_paired_fu)) {
               uint32_t r_fu = 0;
               if (pts_r_table_lookup(&g_pts_r_table, fu_seq, &r_fu) == 0) {
+                g_pts_last_paired_fu = fu_seq;
                 g_pts_pairs++;
                 LOG_PRINT("M[N]<->R[N] seq=%lu M=%lu R=%lu RSSI=%d pairs=%lu\n",
                           (unsigned long)fu_seq,

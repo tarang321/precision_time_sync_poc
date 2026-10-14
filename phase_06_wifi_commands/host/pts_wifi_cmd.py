@@ -44,9 +44,13 @@ def main() -> int:
         return 0
 
     msg = f"{args.action.upper()},{args.lead_ms}\n"
-    reply = udp_exchange(args.master, MASTER_PORT, msg, expect_prefix="OK,")
+    reply = udp_exchange(args.master, MASTER_PORT, msg)
     print(reply)
-    print("master arms LED1 + airs PTS6 on BLE; RX arms via to_local; both fire @ exec_m")
+    if reply.startswith("ERR,"):
+        return 1
+    if not reply.startswith("OK,"):
+        raise RuntimeError(f"unexpected reply: {reply!r}")
+    print("master queued arm + BLE PTS6; RX arms via to_local; both fire @ exec_m")
     return 0
 
 

@@ -78,8 +78,9 @@
    | BLE_ANONYMOUS_ADV | BLE_TX_WR_ADV)
 #define BLE_MAX_AE_EVNTS 0
 
-#define RSI_BLE_ADV_INT_MIN     0x100
-#define RSI_BLE_ADV_INT_MAX     0x200
+/* Primary AE carries SyncInfo. Tighter = faster reacq after SYNC_LOST (more air). */
+#define RSI_BLE_ADV_INT_MIN     0x60
+#define RSI_BLE_ADV_INT_MAX     0xA0
 #define RSI_BLE_ADV_CHANNEL_MAP 0x07
 
 //!Advertise status

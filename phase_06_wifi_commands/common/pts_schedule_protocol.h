@@ -31,15 +31,16 @@
 
 /**
  * Master fires at exec_m (network clock = master SysTimer). Keep 0.
- * RX subtracts PATH_COMP from to_local() to cancel one-way (set_ae_data → RX cb).
- * RX-early → lower PATH_COMP (fire later). RX-late → raise it.
- * 30 ms over-corrected (RX a few ms early); 26 ms is one PA minus ~4 ms.
+ * RX: r_target = to_local(exec_m) - PATH_COMP_MS (signed).
+ *   positive PATH_COMP → fire earlier; negative → fire later.
+ * LA at +16: RX early mean ~5.7 ms (3.1–8.0, walk). 16 - 6 → 10.
+ * Centers settled mean; does not remove rate walk / SW stamp floor.
  */
 #ifndef PTS_SCHED_MASTER_COMP_MS
-#define PTS_SCHED_MASTER_COMP_MS   0u
+#define PTS_SCHED_MASTER_COMP_MS   0
 #endif
 #ifndef PTS_SCHED_PATH_COMP_MS
-#define PTS_SCHED_PATH_COMP_MS     26u
+#define PTS_SCHED_PATH_COMP_MS     10
 #endif
 
 /** ms → SysTimer ticks without uint32 overflow (freq ~180 MHz). */
@@ -87,7 +88,10 @@ static inline int pts_sched_decode(const uint8_t *data,
       || (exec_m == NULL) || (data_len < PTS_SCHED_PAYLOAD_LEN)) {
     return -1;
   }
-  if ((data[1] != PTS_SCHED_AD_TYPE) || (data[4] != PTS_SCHED_MAGIC0) || (data[5] != PTS_SCHED_MAGIC1)
+  if ((data[0] != (uint8_t)(PTS_SCHED_PAYLOAD_LEN - 1u)) || (data[1] != PTS_SCHED_AD_TYPE)
+      || (data[2] != (uint8_t)(PTS_SCHED_COMPANY_ID & 0xFFu))
+      || (data[3] != (uint8_t)((PTS_SCHED_COMPANY_ID >> 8) & 0xFFu))
+      || (data[4] != PTS_SCHED_MAGIC0) || (data[5] != PTS_SCHED_MAGIC1)
       || (data[6] != PTS_SCHED_MAGIC2) || (data[7] != PTS_SCHED_MAGIC3)) {
     return -1;
   }

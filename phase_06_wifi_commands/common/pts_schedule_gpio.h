@@ -23,10 +23,13 @@ typedef struct {
 
 int pts_schedule_gpio_init(void);
 
+/** Clear armed state + cmd_id dedupe (call on master session change). */
+void pts_schedule_gpio_reset(void);
+
 /**
  * RX: convert network exec_m → local R and arm.
  * cmd_type: PTS_SCHED_TYPE_GPIO_ON / OFF.
- * Returns 0 armed, 1 duplicate, -1 fail, -2 late skip (no fire).
+ * Returns 0 armed, 1 duplicate, -1 fail, -2 late skip (no fire; cmd_id not consumed).
  */
 int pts_schedule_gpio_arm(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m);
 

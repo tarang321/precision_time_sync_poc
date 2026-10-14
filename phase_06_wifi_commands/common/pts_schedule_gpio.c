@@ -4,11 +4,11 @@
  *
  * Master fires at exec_m. RX fires at to_local(exec_m) - PATH_COMP.
  * ARM of a past target is skipped (no catch-up fire).
+ * Arm/poll share state under osKernelLock.
  */
 #include "pts_schedule_gpio.h"
 #include "pts_network_time.h"
 #include "pts_schedule_protocol.h"
-#include "pts_sync_protocol.h"
 #include "sl_si91x_driver_gpio.h"
 #include "sl_gpio_board.h"
 #include "cmsis_os2.h"
@@ -118,6 +118,15 @@ int pts_schedule_gpio_init(void)
   return 0;
 }
 
+void pts_schedule_gpio_reset(void)
+{
+  (void)osKernelLock();
+  s_armed         = 0u;
+  s_have_last_cmd = 0u;
+  s_last_cmd_id   = 0u;
+  (void)osKernelUnlock();
+}
+
 static int arm_common(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m, uint32_t r_target)
 {
   uint32_t now;
@@ -126,19 +135,16 @@ static int arm_common(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m, uint32
   if ((cmd_type != PTS_SCHED_TYPE_GPIO_ON) && (cmd_type != PTS_SCHED_TYPE_GPIO_OFF)) {
     return -1;
   }
+
+  (void)osKernelLock();
   if (s_have_last_cmd && (cmd_id == s_last_cmd_id)) {
+    (void)osKernelUnlock();
     return 1;
   }
+  (void)osKernelUnlock();
 
   now  = osKernelGetSysTimerCount();
   freq = osKernelGetSysTimerFreq();
-
-  s_cmd_id        = cmd_id;
-  s_cmd_type      = cmd_type;
-  s_exec_m        = exec_m;
-  s_r_target      = r_target;
-  s_last_cmd_id   = cmd_id;
-  s_have_last_cmd = 1u;
 
   s_arm_info.cmd_id     = cmd_id;
   s_arm_info.exec_m     = exec_m;
@@ -149,14 +155,21 @@ static int arm_common(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m, uint32
   s_arm_info.late       = 0u;
   s_arm_info_pending    = 1u;
 
-  /* Already past — do not catch-up fire (that desyncs the other board). */
+  /* Already past — do not catch-up fire; do not consume cmd_id. */
   if ((int32_t)(r_target - now) < 0) {
-    s_armed       = 0u;
     s_arm_info.late = 1u;
     return -2;
   }
 
-  s_armed = 1u;
+  (void)osKernelLock();
+  s_cmd_id        = cmd_id;
+  s_cmd_type      = cmd_type;
+  s_exec_m        = exec_m;
+  s_r_target      = r_target;
+  s_last_cmd_id   = cmd_id;
+  s_have_last_cmd = 1u;
+  s_armed         = 1u;
+  (void)osKernelUnlock();
   return 0;
 }
 
@@ -164,12 +177,19 @@ int pts_schedule_gpio_arm(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m)
 {
   uint32_t r_target = 0;
   uint32_t path;
+  int32_t path_ms;
 
   if (pts_network_time_to_local(exec_m, &r_target) != 0) {
     return -1;
   }
-  path = pts_ms_to_systimer_ticks(PTS_SCHED_PATH_COMP_MS, osKernelGetSysTimerFreq());
-  r_target -= path;
+  path_ms = (int32_t)PTS_SCHED_PATH_COMP_MS;
+  if (path_ms >= 0) {
+    path = pts_ms_to_systimer_ticks((uint32_t)path_ms, osKernelGetSysTimerFreq());
+    r_target -= path;
+  } else {
+    path = pts_ms_to_systimer_ticks((uint32_t)(-path_ms), osKernelGetSysTimerFreq());
+    r_target += path;
+  }
   return arm_common(cmd_id, cmd_type, exec_m, r_target);
 }
 
@@ -180,25 +200,39 @@ int pts_schedule_gpio_arm_local(uint32_t cmd_id, uint8_t cmd_type, uint32_t loca
 
 int pts_schedule_gpio_take_fire(uint32_t *cmd_id_out, uint32_t *exec_m_out, uint8_t *late_out)
 {
-  if (!s_fire_pending) {
+  uint8_t pending;
+  uint32_t fire_cmd;
+  uint32_t exec_m;
+  uint8_t late;
+
+  (void)osKernelLock();
+  pending  = s_fire_pending;
+  fire_cmd = s_fire_cmd;
+  exec_m   = s_exec_m;
+  late     = s_fire_late;
+  if (pending) {
+    s_fire_pending = 0u;
+  }
+  (void)osKernelUnlock();
+
+  if (!pending) {
     return 0;
   }
   if (cmd_id_out != NULL) {
-    *cmd_id_out = s_fire_cmd;
+    *cmd_id_out = fire_cmd;
   }
   if (exec_m_out != NULL) {
-    *exec_m_out = s_exec_m;
+    *exec_m_out = exec_m;
   }
   if (late_out != NULL) {
-    *late_out = s_fire_late;
+    *late_out = late;
   }
-  s_fire_pending = 0u;
   return 1;
 }
 
 int pts_schedule_gpio_take_arm_info(pts_sched_arm_info_t *out)
 {
-  if (!s_arm_info_pending || (out == NULL)) {
+  if ((out == NULL) || !s_arm_info_pending) {
     return 0;
   }
   *out               = s_arm_info;
@@ -222,13 +256,20 @@ void pts_schedule_gpio_poll(void)
   uint32_t freq;
   uint32_t busy_lead;
   uint32_t late_lim;
+  uint32_t r_target;
+  uint8_t armed;
 
-  if (!s_armed) {
+  (void)osKernelLock();
+  armed    = s_armed;
+  r_target = s_r_target;
+  (void)osKernelUnlock();
+
+  if (!armed) {
     return;
   }
 
   now  = osKernelGetSysTimerCount();
-  left = (uint32_t)(s_r_target - now);
+  left = (uint32_t)(r_target - now);
   freq = osKernelGetSysTimerFreq();
   late_lim = pts_ms_to_systimer_ticks(PTS_SCHED_LATE_LOG_MS, freq);
   if (late_lim == 0u) {
@@ -237,8 +278,12 @@ void pts_schedule_gpio_poll(void)
 
   /* Target in the past (signed). */
   if (left > 0x80000000u) {
-    uint32_t late_ticks = (uint32_t)(now - s_r_target);
-    do_fire((late_ticks > late_lim) ? 1u : 0u);
+    uint32_t late_ticks = (uint32_t)(now - r_target);
+    (void)osKernelLock();
+    if (s_armed && (s_r_target == r_target)) {
+      do_fire((late_ticks > late_lim) ? 1u : 0u);
+    }
+    (void)osKernelUnlock();
     return;
   }
 
@@ -258,7 +303,11 @@ void pts_schedule_gpio_poll(void)
     }
   }
 
-  while ((int32_t)(osKernelGetSysTimerCount() - s_r_target) < 0) {
+  while ((int32_t)(osKernelGetSysTimerCount() - r_target) < 0) {
   }
-  do_fire(0u);
+  (void)osKernelLock();
+  if (s_armed && (s_r_target == r_target)) {
+    do_fire(0u);
+  }
+  (void)osKernelUnlock();
 }

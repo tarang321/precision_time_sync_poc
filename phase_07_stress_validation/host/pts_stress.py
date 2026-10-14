@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-Phase 7 stress runner — drives Phase 6 Wi-Fi schedule UDP (1 master + 1 RX).
+Phase 7 stress runner — drives Phase 6 master Wi-Fi UDP (BLE schedule to RX).
+
+P6 contract:
+  Host -> master :5005  ON|OFF[,lead_ms]  -> OK,<cmd_id>,<exec_m>
+  Master arms LED1 + airs PTS6 on BLE; RX is BLE-only (no UDP :5006).
 
 Scenarios: baseline | drift | wifi-load | lead-sweep
-Schedule accuracy is measured on the logic analyzer; this script only logs commands.
+Schedule accuracy is measured on the logic analyzer; this script logs commands.
 """
 
 from __future__ import annotations
@@ -17,10 +21,15 @@ import time
 from pathlib import Path
 
 MASTER_PORT = 5005
-RX_PORT = 5006
-TIMEOUT_S = 2.0
+TIMEOUT_S = 3.0
 
-LEAD_SWEEP_MS = (15, 25, 50, 75, 100, 150, 200, 500)
+# Match P6 defaults (pts_schedule_protocol.h)
+DEFAULT_LEAD_MS = 500
+CMD_ON = 2
+CMD_OFF = 3
+
+# Floor 200 ms — matches PTS_WIFI_LEAD_MIN_MS / P6 air+coex budget.
+LEAD_SWEEP_MS = (200, 300, 500, 750, 1000)
 
 
 def udp_exchange(addr: str, port: int, msg: str, expect_prefix: str | None = None) -> str:
@@ -45,32 +54,27 @@ def udp_send(addr: str, port: int, msg: str) -> None:
         sock.close()
 
 
-def stamp_exec(master: str, lead_ms: int) -> tuple[int, int, int]:
-    """Return (m, hz, exec_m)."""
+def cmd_onoff(master: str, on: bool, lead_ms: int) -> tuple[int, int]:
+    """Send ON/OFF. Returns (cmd_id, exec_m)."""
+    verb = "ON" if on else "OFF"
+    reply = udp_exchange(master, MASTER_PORT, f"{verb},{lead_ms}\n")
+    if reply.startswith("ERR,"):
+        raise RuntimeError(reply)
+    if not reply.startswith("OK,"):
+        raise RuntimeError(f"unexpected reply: {reply!r}")
+    parts = reply.split(",")
+    if len(parts) < 3:
+        raise RuntimeError(f"bad OK line: {reply!r}")
+    return int(parts[1]), int(parts[2])
+
+
+def query_time(master: str) -> tuple[int, int]:
     reply = udp_exchange(master, MASTER_PORT, "TIME\n", expect_prefix="TIME,")
     _, m_s, hz_s = reply.split(",", 2)
-    m = int(m_s)
-    hz = int(hz_s)
-    exec_m = m + (hz * lead_ms) // 1000
-    return m, hz, exec_m
-
-
-def deliver_pts6(
-    receivers: list[str],
-    cmd_id: int,
-    cmd_type: int,
-    exec_m: int,
-    repeat: int,
-) -> None:
-    pts6 = f"PTS6,{cmd_id},{cmd_type},{exec_m},0\n"
-    for _ in range(max(1, repeat)):
-        for rx in receivers:
-            udp_send(rx, RX_PORT, pts6)
-        time.sleep(0.02)
+    return int(m_s), int(hz_s)
 
 
 def flood_loop(targets: list[tuple[str, int]], stop: threading.Event, rate_hz: float) -> None:
-    """Best-effort UDP spam for coexistence (T7/T8)."""
     payload = b"PTSLOAD" + b"\x00" * 64
     period = 1.0 / max(rate_hz, 1.0)
     socks = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in targets]
@@ -95,11 +99,11 @@ def open_csv(path: Path) -> tuple[csv.DictWriter, object]:
         "unix_s",
         "scenario",
         "cmd_id",
+        "cmd",
         "lead_ms",
         "m",
         "hz",
         "exec_m",
-        "receivers",
         "notes",
         "skew_us",
     ]
@@ -111,32 +115,27 @@ def open_csv(path: Path) -> tuple[csv.DictWriter, object]:
 
 def one_shot(
     master: str,
-    receivers: list[str],
     lead_ms: int,
-    cmd_type: int,
-    repeat: int,
+    on: bool,
     writer: csv.DictWriter | None,
     scenario: str,
     notes: str = "",
 ) -> int:
-    m, hz, exec_m = stamp_exec(master, lead_ms)
-    cmd_id = int(time.time() * 1000) & 0x7FFFFFFF
-    deliver_pts6(receivers, cmd_id, cmd_type, exec_m, repeat)
-    print(
-        f"[{scenario}] cmd_id={cmd_id} lead_ms={lead_ms} "
-        f"m={m} hz={hz} exec_m={exec_m}"
-    )
+    m, hz = query_time(master)
+    cmd_id, exec_m = cmd_onoff(master, on, lead_ms)
+    verb = "ON" if on else "OFF"
+    print(f"[{scenario}] {verb} cmd_id={cmd_id} lead_ms={lead_ms} m={m} hz={hz} exec_m={exec_m}")
     if writer is not None:
         writer.writerow(
             {
                 "unix_s": f"{time.time():.3f}",
                 "scenario": scenario,
                 "cmd_id": cmd_id,
+                "cmd": verb,
                 "lead_ms": lead_ms,
                 "m": m,
                 "hz": hz,
                 "exec_m": exec_m,
-                "receivers": ";".join(receivers),
                 "notes": notes,
                 "skew_us": "",  # fill from LA
             }
@@ -146,10 +145,7 @@ def one_shot(
 
 def run_periodic(
     master: str,
-    receivers: list[str],
     lead_ms: int,
-    cmd_type: int,
-    repeat: int,
     duration_s: float,
     period_s: float,
     writer: csv.DictWriter | None,
@@ -158,13 +154,13 @@ def run_periodic(
 ) -> None:
     t_end = time.monotonic() + duration_s
     n = 0
+    on = True
     while time.monotonic() < t_end:
         t0 = time.monotonic()
         try:
-            one_shot(
-                master, receivers, lead_ms, cmd_type, repeat, writer, scenario, notes
-            )
+            one_shot(master, lead_ms, on, writer, scenario, notes)
             n += 1
+            on = not on
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             if writer is not None:
@@ -173,11 +169,11 @@ def run_periodic(
                         "unix_s": f"{time.time():.3f}",
                         "scenario": scenario,
                         "cmd_id": "",
+                        "cmd": "",
                         "lead_ms": lead_ms,
                         "m": "",
                         "hz": "",
                         "exec_m": "",
-                        "receivers": ";".join(receivers),
                         "notes": f"FAIL {exc}",
                         "skew_us": "",
                     }
@@ -188,27 +184,24 @@ def run_periodic(
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="PTS Phase 7 stress runner")
-    p.add_argument("--master", required=True)
-    p.add_argument("--receivers", required=True, help="Comma-separated RX IPv4")
+    p = argparse.ArgumentParser(description="PTS Phase 7 stress runner (P6 Wi-Fi → BLE)")
+    p.add_argument("--master", required=True, help="Master Si917 IPv4")
     p.add_argument(
         "--scenario",
         choices=("baseline", "drift", "wifi-load", "lead-sweep"),
         default="baseline",
     )
-    p.add_argument("--lead-ms", type=int, default=100)
-    p.add_argument("--cmd-type", type=int, default=1)
-    p.add_argument("--repeat", type=int, default=3)
+    p.add_argument("--lead-ms", type=int, default=DEFAULT_LEAD_MS)
     p.add_argument("--duration-s", type=float, default=300.0)
     p.add_argument("--period-s", type=float, default=2.0)
     p.add_argument("--flood-hz", type=float, default=200.0, help="UDP flood rate (wifi-load)")
     p.add_argument("--results", type=Path, default=None, help="Append CSV path")
+    p.add_argument(
+        "--receivers",
+        default="",
+        help="Ignored (P6 RX is BLE-only). Kept for CLI compat.",
+    )
     args = p.parse_args()
-
-    receivers = [x.strip() for x in args.receivers.split(",") if x.strip()]
-    if not receivers:
-        print("no receivers", file=sys.stderr)
-        return 2
 
     writer = None
     fh = None
@@ -219,23 +212,18 @@ def main() -> int:
     flood_thread: threading.Thread | None = None
 
     try:
+        # Probe master first
+        m, hz = query_time(args.master)
+        print(f"master TIME m={m} hz={hz}")
+
         if args.scenario == "baseline":
-            one_shot(
-                args.master,
-                receivers,
-                args.lead_ms,
-                args.cmd_type,
-                args.repeat,
-                writer,
-                "baseline",
-            )
+            one_shot(args.master, args.lead_ms, True, writer, "baseline", notes="T1 ON")
+            time.sleep(max(0.8, args.lead_ms / 1000.0 + 0.3))
+            one_shot(args.master, args.lead_ms, False, writer, "baseline", notes="T1 OFF")
         elif args.scenario == "drift":
             run_periodic(
                 args.master,
-                receivers,
                 args.lead_ms,
-                args.cmd_type,
-                args.repeat,
                 args.duration_s,
                 args.period_s,
                 writer,
@@ -243,7 +231,7 @@ def main() -> int:
             )
         elif args.scenario == "wifi-load":
             flood_stop = threading.Event()
-            targets = [(args.master, MASTER_PORT)] + [(r, RX_PORT) for r in receivers]
+            targets = [(args.master, MASTER_PORT)]
             flood_thread = threading.Thread(
                 target=flood_loop,
                 args=(targets, flood_stop, args.flood_hz),
@@ -252,10 +240,7 @@ def main() -> int:
             flood_thread.start()
             run_periodic(
                 args.master,
-                receivers,
                 args.lead_ms,
-                args.cmd_type,
-                args.repeat,
                 args.duration_s,
                 args.period_s,
                 writer,
@@ -263,22 +248,21 @@ def main() -> int:
                 notes=f"flood_hz={args.flood_hz}",
             )
         elif args.scenario == "lead-sweep":
+            on = True
             for lead in LEAD_SWEEP_MS:
                 try:
                     one_shot(
                         args.master,
-                        receivers,
                         lead,
-                        args.cmd_type,
-                        args.repeat,
+                        on,
                         writer,
                         "lead-sweep",
                         notes=f"lead={lead}",
                     )
+                    on = not on
                 except (OSError, RuntimeError, ValueError) as exc:
                     print(f"lead={lead} FAIL {exc}", file=sys.stderr)
-                # Wait past lead + margin so edges do not pile up
-                time.sleep(max(0.5, (lead / 1000.0) + 0.3))
+                time.sleep(max(0.8, (lead / 1000.0) + 0.4))
     finally:
         if flood_stop is not None:
             flood_stop.set()
@@ -287,7 +271,7 @@ def main() -> int:
         if fh is not None:
             fh.close()
 
-    print("done — fill skew_us from LA into results CSV")
+    print("done — fill skew_us from LA (master LED1 vs RX LED1) into results CSV")
     return 0
 
 

@@ -90,7 +90,10 @@ static inline int pts_fu_decode(const uint8_t *data, uint8_t data_len,
       || (fu_valid == NULL) || (data_len < PTS_FU_PAYLOAD_LEN)) {
     return -1;
   }
-  if ((data[1] != PTS_FU_AD_TYPE) || (data[4] != PTS_FU_MAGIC0) || (data[5] != PTS_FU_MAGIC1)
+  if ((data[0] != (uint8_t)(PTS_FU_PAYLOAD_LEN - 1u)) || (data[1] != PTS_FU_AD_TYPE)
+      || (data[2] != (uint8_t)(PTS_FU_COMPANY_ID & 0xFFu))
+      || (data[3] != (uint8_t)((PTS_FU_COMPANY_ID >> 8) & 0xFFu))
+      || (data[4] != PTS_FU_MAGIC0) || (data[5] != PTS_FU_MAGIC1)
       || (data[6] != PTS_FU_MAGIC2) || (data[7] != PTS_FU_MAGIC3)) {
     return -1;
   }

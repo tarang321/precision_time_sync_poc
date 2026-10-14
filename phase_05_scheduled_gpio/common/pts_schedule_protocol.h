@@ -96,7 +96,10 @@ static inline int pts_sched_decode(const uint8_t *data,
       || (exec_m == NULL) || (data_len < PTS_SCHED_PAYLOAD_LEN)) {
     return -1;
   }
-  if ((data[1] != PTS_SCHED_AD_TYPE) || (data[4] != PTS_SCHED_MAGIC0) || (data[5] != PTS_SCHED_MAGIC1)
+  if ((data[0] != (uint8_t)(PTS_SCHED_PAYLOAD_LEN - 1u)) || (data[1] != PTS_SCHED_AD_TYPE)
+      || (data[2] != (uint8_t)(PTS_SCHED_COMPANY_ID & 0xFFu))
+      || (data[3] != (uint8_t)((PTS_SCHED_COMPANY_ID >> 8) & 0xFFu))
+      || (data[4] != PTS_SCHED_MAGIC0) || (data[5] != PTS_SCHED_MAGIC1)
       || (data[6] != PTS_SCHED_MAGIC2) || (data[7] != PTS_SCHED_MAGIC3)) {
     return -1;
   }

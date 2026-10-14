@@ -35,6 +35,7 @@
 #include "sl_wifi.h"
 #include "sl_wifi_callback_framework.h"
 #include "cmsis_os2.h"
+#include "cmsis_compiler.h"
 
 //! BLE include file to refer BLE APIs
 #include <string.h>
@@ -85,6 +86,7 @@ static uint32_t g_pts_cmd_id;
 static uint32_t g_pts_cmd_exec_m;
 static uint8_t g_pts_cmd_repeats_left;
 static uint32_t g_pts_sched_countdown = PTS_SCHED_BOOT_DELAY_PKTS;
+static uint8_t g_pts_payload_has_sched;
 
 static void rsi_ble_app_set_event(uint32_t event_num);
 
@@ -99,7 +101,8 @@ static void pts_master_build_payload(uint32_t seq)
   if (g_pts_session == 0u) {
     g_pts_session = osKernelGetSysTimerCount() | 1u;
   }
-  g_pts_m_ticks = osKernelGetSysTimerCount();
+  g_pts_m_ticks           = osKernelGetSysTimerCount();
+  g_pts_payload_has_sched = 0u;
 
   for (i = 0u; i < PTS_FU_HIST_K; i++) {
     hist_m[i] = 0u;
@@ -117,8 +120,8 @@ static void pts_master_build_payload(uint32_t seq)
                      PTS_SCHED_TYPE_GPIO_TOGGLE,
                      PTS_SCHED_STATUS_VALID,
                      g_pts_cmd_exec_m);
-    g_pts_payload_len      = (uint8_t)PTS_PERIODIC_MAX_LEN;
-    g_pts_cmd_repeats_left--;
+    g_pts_payload_len       = (uint8_t)PTS_PERIODIC_MAX_LEN;
+    g_pts_payload_has_sched = 1u;
   } else if (g_pts_sched_countdown > 0u) {
     g_pts_sched_countdown--;
   } else {
@@ -131,9 +134,10 @@ static void pts_master_build_payload(uint32_t seq)
                      PTS_SCHED_TYPE_GPIO_TOGGLE,
                      PTS_SCHED_STATUS_VALID,
                      g_pts_cmd_exec_m);
-    g_pts_payload_len      = (uint8_t)PTS_PERIODIC_MAX_LEN;
-    g_pts_cmd_repeats_left = (uint8_t)(PTS_SCHED_REPEAT_COUNT - 1u);
-    g_pts_sched_countdown  = PTS_SCHED_PERIOD_PKTS;
+    g_pts_payload_len       = (uint8_t)PTS_PERIODIC_MAX_LEN;
+    g_pts_payload_has_sched = 1u;
+    g_pts_cmd_repeats_left  = (uint8_t)PTS_SCHED_REPEAT_COUNT;
+    g_pts_sched_countdown   = PTS_SCHED_PERIOD_PKTS;
     /* Master M == SysTimer: arm LED1 at same exec_m RX will convert to local R. */
     (void)pts_schedule_gpio_arm_local(g_pts_cmd_id, PTS_SCHED_TYPE_GPIO_TOGGLE, g_pts_cmd_exec_m);
     LOG_PRINT("PTS sched cmd=%lu exec_m=%lu lead_ms=%u (master ARM LED1)\n",
@@ -218,7 +222,7 @@ sl_wifi_performance_profile_v2_t wifi_profile = { .profile = ASSOCIATED_POWER_SA
 //! Application global parameters.
 static rsi_bt_resp_get_local_name_t rsi_app_resp_get_local_name = { 0 };
 static uint8_t rsi_app_resp_get_dev_addr[RSI_DEV_ADDR_LEN]      = { 0 };
-static uint32_t rsi_app_async_event_map                         = 0;
+static volatile uint32_t rsi_app_async_event_map = 0;
 static rsi_ble_event_conn_status_t rsi_app_connected_device     = { 0 };
 static rsi_ble_event_disconnect_t rsi_app_disconnected_device   = { 0 };
 static rsi_ble_adv_set_terminated_t adv_set_terminated          = { 0 };
@@ -340,8 +344,13 @@ static void rsi_ble_app_init_events()
  */
 static void rsi_ble_app_set_event(uint32_t event_num)
 {
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
   rsi_app_async_event_map |= BIT(event_num);
-  return;
+  __set_PRIMASK(primask);
+  if (ble_main_task_sem != NULL) {
+    (void)osSemaphoreRelease(ble_main_task_sem);
+  }
 }
 
 /*==============================================*/
@@ -355,8 +364,10 @@ static void rsi_ble_app_set_event(uint32_t event_num)
  */
 static void rsi_ble_app_clear_event(uint32_t event_num)
 {
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
   rsi_app_async_event_map &= ~BIT(event_num);
-  return;
+  __set_PRIMASK(primask);
 }
 
 /*==============================================*/
@@ -526,7 +537,7 @@ void rsi_ble_peripheral(void)
     LOG_PRINT("\n RSI_BLE_ON_ADV_EXT_SCAN_REQUEST_RECEIVED_EVENT callback registering success \n");
   }
   //! initialize the event map
-  //ble_main_task_sem = osSemaphoreNew(1, 0, NULL);
+  ble_main_task_sem = osSemaphoreNew(1, 0, NULL);
   //! initialize the event map
   rsi_ble_app_init_events();
 
@@ -683,6 +694,9 @@ void rsi_ble_peripheral(void)
     LOG_PRINT("set periodic adv data failed with 0x%lX\n", status);
     return;
   } else {
+    if (g_pts_payload_has_sched && (g_pts_cmd_repeats_left > 0u)) {
+      g_pts_cmd_repeats_left--;
+    }
     pts_master_commit_hist();
     LOG_PRINT("set periodic adv data success (seq=%lu)\n", (unsigned long)g_pts_seq);
   }
@@ -930,6 +944,9 @@ void rsi_ble_peripheral(void)
             LOG_PRINT("PTS seq update failed 0x%lX next=%lu\n", status, (unsigned long)next_seq);
           } else {
             g_pts_seq = next_seq;
+            if (g_pts_payload_has_sched && (g_pts_cmd_repeats_left > 0u)) {
+              g_pts_cmd_repeats_left--;
+            }
             pts_master_commit_hist();
             pts_debug_gpio_toggle();
             if ((g_pts_seq % 200u) == 0u) {

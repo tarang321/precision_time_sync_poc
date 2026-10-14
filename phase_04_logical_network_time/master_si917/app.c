@@ -35,6 +35,7 @@
 #include "sl_wifi.h"
 #include "sl_wifi_callback_framework.h"
 #include "cmsis_os2.h"
+#include "cmsis_compiler.h"
 
 //! BLE include file to refer BLE APIs
 #include <string.h>
@@ -176,7 +177,7 @@ sl_wifi_performance_profile_v2_t wifi_profile = { .profile = ASSOCIATED_POWER_SA
 //! Application global parameters.
 static rsi_bt_resp_get_local_name_t rsi_app_resp_get_local_name = { 0 };
 static uint8_t rsi_app_resp_get_dev_addr[RSI_DEV_ADDR_LEN]      = { 0 };
-static uint32_t rsi_app_async_event_map                         = 0;
+static volatile uint32_t rsi_app_async_event_map = 0;
 static rsi_ble_event_conn_status_t rsi_app_connected_device     = { 0 };
 static rsi_ble_event_disconnect_t rsi_app_disconnected_device   = { 0 };
 static rsi_ble_adv_set_terminated_t adv_set_terminated          = { 0 };
@@ -298,8 +299,13 @@ static void rsi_ble_app_init_events()
  */
 static void rsi_ble_app_set_event(uint32_t event_num)
 {
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
   rsi_app_async_event_map |= BIT(event_num);
-  return;
+  __set_PRIMASK(primask);
+  if (ble_main_task_sem != NULL) {
+    (void)osSemaphoreRelease(ble_main_task_sem);
+  }
 }
 
 /*==============================================*/
@@ -313,8 +319,10 @@ static void rsi_ble_app_set_event(uint32_t event_num)
  */
 static void rsi_ble_app_clear_event(uint32_t event_num)
 {
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
   rsi_app_async_event_map &= ~BIT(event_num);
-  return;
+  __set_PRIMASK(primask);
 }
 
 /*==============================================*/
@@ -484,7 +492,7 @@ void rsi_ble_peripheral(void)
     LOG_PRINT("\n RSI_BLE_ON_ADV_EXT_SCAN_REQUEST_RECEIVED_EVENT callback registering success \n");
   }
   //! initialize the event map
-  //ble_main_task_sem = osSemaphoreNew(1, 0, NULL);
+  ble_main_task_sem = osSemaphoreNew(1, 0, NULL);
   //! initialize the event map
   rsi_ble_app_init_events();
 

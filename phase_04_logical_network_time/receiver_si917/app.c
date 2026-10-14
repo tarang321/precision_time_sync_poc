@@ -363,18 +363,19 @@ void rsi_ble_simple_central_on_ae_periodic_adv_report_event(uint16_t status,
     g_pts_rpt_bad_status++;
   }
   if (ae_per_adv_report != NULL) {
-    uint32_t r_ticks = osKernelGetSysTimerCount();
     if (ae_per_adv_report->data_status != 0u) {
       g_pts_rpt_incomplete++;
+    } else {
+      uint32_t r_ticks = osKernelGetSysTimerCount();
+      pts_event_gpio_pulse();
+      (void)pts_rx_ring_push(&g_pts_rx_ring,
+                             ae_per_adv_report->data,
+                             ae_per_adv_report->data_len,
+                             ae_per_adv_report->RSSI,
+                             r_ticks,
+                             ae_per_adv_report->data_status,
+                             status);
     }
-    pts_event_gpio_pulse();
-    (void)pts_rx_ring_push(&g_pts_rx_ring,
-                           ae_per_adv_report->data,
-                           ae_per_adv_report->data_len,
-                           ae_per_adv_report->RSSI,
-                           r_ticks,
-                           ae_per_adv_report->data_status,
-                           status);
   }
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_PER_ADV_REPORT);
 }

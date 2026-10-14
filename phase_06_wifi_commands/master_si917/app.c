@@ -35,6 +35,7 @@
 #include "sl_wifi.h"
 #include "sl_wifi_callback_framework.h"
 #include "cmsis_os2.h"
+#include "cmsis_compiler.h"
 
 //! BLE include file to refer BLE APIs
 #include <string.h>
@@ -71,6 +72,37 @@
 
 #define PTS_PERIODIC_MAX_LEN (PTS_FU_PAYLOAD_LEN + PTS_SCHED_PAYLOAD_LEN)
 
+/* Host pkt pool recovery for rsi_ble_set_ae_data → 0xFFFFFFFC (-4).
+ * Keep PA interval/session unchanged; only retry + brief skip so last AD stays on air. */
+#ifndef PTS_PUSH_RETRY_MAX
+#define PTS_PUSH_RETRY_MAX 3u
+#endif
+#ifndef PTS_PUSH_RETRY_DELAY_MS
+#define PTS_PUSH_RETRY_DELAY_MS 5u
+#endif
+#ifndef PTS_PUSH_BACKOFF_TICKS
+#define PTS_PUSH_BACKOFF_TICKS 2u
+#endif
+#ifndef PTS_PUSH_BACKOFF_TICKS_HARD
+#define PTS_PUSH_BACKOFF_TICKS_HARD 10u /* ~300 ms @ 30 ms tick — NWP timeout/alloc */
+#endif
+#ifndef PTS_PUSH_FAIL_LOG_EVERY
+#define PTS_PUSH_FAIL_LOG_EVERY 32u
+#endif
+/* Periodic AE START while already advertising returns 0x4E0C (Command Disallowed)
+ * and can upset the NWP. Leave AE up; EXT_ADV_TERMINATED handler restarts it.
+ * 0 = disabled. */
+#ifndef PTS_AE_ADV_REFRESH_SEQ
+#define PTS_AE_ADV_REFRESH_SEQ 0u
+#endif
+#define PTS_SAPI_PKT_ALLOC_FAIL ((int32_t)0xFFFFFFFC) /* -4 */
+#define PTS_SAPI_RSP_TIMEOUT    ((int32_t)0xFFFFFFE2) /* -30 */
+
+static int pts_push_is_recoverable(int32_t st)
+{
+  return (st == PTS_SAPI_PKT_ALLOC_FAIL) || (st == PTS_SAPI_RSP_TIMEOUT);
+}
+
 static uint32_t g_pts_seq;
 static uint8_t g_pts_periodic_payload[PTS_PERIODIC_MAX_LEN];
 static uint8_t g_pts_payload_len;
@@ -82,11 +114,14 @@ static uint32_t g_pts_session;
 static volatile uint8_t g_pts_seq_busy;
 static uint32_t g_pts_push_ok;
 static uint32_t g_pts_push_fail;
+static uint32_t g_pts_push_fail_streak;
+static uint32_t g_pts_push_backoff;
 static uint32_t g_pts_m_ticks;
 static uint32_t g_pts_cmd_id;
 static uint32_t g_pts_cmd_exec_m;
 static uint8_t g_pts_cmd_type;
 static uint8_t g_pts_cmd_repeats_left;
+static uint8_t g_pts_payload_has_sched;
 
 static void rsi_ble_app_set_event(uint32_t event_num);
 
@@ -132,7 +167,8 @@ static void pts_master_build_payload(uint32_t seq)
     }
   }
   pts_fu_encode(g_pts_periodic_payload, seq, hist_m, mask, g_pts_session);
-  g_pts_payload_len = PTS_FU_PAYLOAD_LEN;
+  g_pts_payload_len      = PTS_FU_PAYLOAD_LEN;
+  g_pts_payload_has_sched = 0u;
 
   if (g_pts_cmd_repeats_left > 0u) {
     pts_sched_encode(&g_pts_periodic_payload[PTS_FU_PAYLOAD_LEN],
@@ -140,8 +176,9 @@ static void pts_master_build_payload(uint32_t seq)
                      g_pts_cmd_type,
                      PTS_SCHED_STATUS_VALID,
                      g_pts_cmd_exec_m);
-    g_pts_payload_len = (uint8_t)PTS_PERIODIC_MAX_LEN;
-    g_pts_cmd_repeats_left--;
+    g_pts_payload_len       = (uint8_t)PTS_PERIODIC_MAX_LEN;
+    g_pts_payload_has_sched = 1u;
+    /* Consume a repeat only after successful set_ae_data (see SEQ_UPDATE). */
   }
 }
 
@@ -162,7 +199,6 @@ static void pts_master_commit_hist(void)
 static int32_t pts_master_push_periodic_data(void)
 {
   rsi_ble_ae_data_t ble_ae_data = { 0 };
-  int32_t status;
 
   ble_ae_data.type       = BLE_AE_PERIODIC_ADV_DATA_TYPE;
   ble_ae_data.adv_handle = BLE_ADV_HNDL1;
@@ -170,13 +206,26 @@ static int32_t pts_master_push_periodic_data(void)
   ble_ae_data.frag_pref  = 0x00;
   ble_ae_data.data_len   = g_pts_payload_len;
   memcpy(ble_ae_data.data, g_pts_periodic_payload, ble_ae_data.data_len);
-  status = rsi_ble_set_ae_data(&ble_ae_data);
-  if (status == RSI_SUCCESS) {
-    g_pts_push_ok++;
-  } else {
-    g_pts_push_fail++;
+  /* Counters updated by caller once per logical seq (retries must not inflate fail). */
+  return rsi_ble_set_ae_data(&ble_ae_data);
+}
+
+/** Restart extended AE only when known down (e.g. EXT_ADV_TERMINATED). Never STOP. */
+static void pts_master_ae_adv_refresh(void)
+{
+  rsi_ble_ae_adv_enable_t ble_ae_adv = { 0 };
+  int32_t status;
+
+  ble_ae_adv.enable        = RSI_BLE_START_ADV;
+  ble_ae_adv.no_of_sets    = 1;
+  ble_ae_adv.adv_handle    = BLE_ADV_HNDL1;
+  ble_ae_adv.duration      = 0;
+  ble_ae_adv.max_ae_events = BLE_MAX_AE_EVNTS;
+  status                   = rsi_ble_start_ae_advertising(&ble_ae_adv);
+  /* 0x4E0C = already advertising — treat as OK. */
+  if ((status != RSI_SUCCESS) && ((uint32_t)status != 0x4E0Cu)) {
+    LOG_PRINT("PTS AE adv start fail 0x%lX seq=%lu\n", status, (unsigned long)g_pts_seq);
   }
-  return status;
 }
 
 static void pts_seq_timer_cb(void *argument)
@@ -220,7 +269,7 @@ sl_wifi_performance_profile_v2_t wifi_profile = { .profile = ASSOCIATED_POWER_SA
 //! Application global parameters.
 static rsi_bt_resp_get_local_name_t rsi_app_resp_get_local_name = { 0 };
 static uint8_t rsi_app_resp_get_dev_addr[RSI_DEV_ADDR_LEN]      = { 0 };
-static uint32_t rsi_app_async_event_map                         = 0;
+static volatile uint32_t rsi_app_async_event_map = 0;
 static rsi_ble_event_conn_status_t rsi_app_connected_device     = { 0 };
 static rsi_ble_event_disconnect_t rsi_app_disconnected_device   = { 0 };
 static rsi_ble_adv_set_terminated_t adv_set_terminated          = { 0 };
@@ -342,8 +391,13 @@ static void rsi_ble_app_init_events()
  */
 static void rsi_ble_app_set_event(uint32_t event_num)
 {
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
   rsi_app_async_event_map |= BIT(event_num);
-  return;
+  __set_PRIMASK(primask);
+  if (ble_main_task_sem != NULL) {
+    (void)osSemaphoreRelease(ble_main_task_sem);
+  }
 }
 
 /*==============================================*/
@@ -357,8 +411,10 @@ static void rsi_ble_app_set_event(uint32_t event_num)
  */
 static void rsi_ble_app_clear_event(uint32_t event_num)
 {
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
   rsi_app_async_event_map &= ~BIT(event_num);
-  return;
+  __set_PRIMASK(primask);
 }
 
 /*==============================================*/
@@ -528,7 +584,7 @@ void rsi_ble_peripheral(void)
     LOG_PRINT("\n RSI_BLE_ON_ADV_EXT_SCAN_REQUEST_RECEIVED_EVENT callback registering success \n");
   }
   //! initialize the event map
-  //ble_main_task_sem = osSemaphoreNew(1, 0, NULL);
+  ble_main_task_sem = osSemaphoreNew(1, 0, NULL);
   //! initialize the event map
   rsi_ble_app_init_events();
 
@@ -674,17 +730,24 @@ void rsi_ble_peripheral(void)
   }
 
 #if PERIODIC_ADV_EN
-  g_pts_seq            = 0;
-  g_pts_m_hist_count   = 0u;
-  g_pts_m_hist_valid   = 0u;
-  g_pts_push_ok        = 0u;
-  g_pts_push_fail      = 0u;
+  g_pts_seq              = 0;
+  g_pts_m_hist_count     = 0u;
+  g_pts_m_hist_valid     = 0u;
+  g_pts_push_ok          = 0u;
+  g_pts_push_fail        = 0u;
+  g_pts_push_fail_streak = 0u;
+  g_pts_push_backoff     = 0u;
   pts_master_build_payload(g_pts_seq);
   status = pts_master_push_periodic_data();
   if (status != RSI_SUCCESS) {
+    g_pts_push_fail++;
     LOG_PRINT("set periodic adv data failed with 0x%lX\n", status);
     return;
   } else {
+    g_pts_push_ok++;
+    if (g_pts_payload_has_sched && (g_pts_cmd_repeats_left > 0u)) {
+      g_pts_cmd_repeats_left--;
+    }
     pts_master_commit_hist();
     LOG_PRINT("set periodic adv data success (seq=%lu)\n", (unsigned long)g_pts_seq);
   }
@@ -944,19 +1007,71 @@ void rsi_ble_peripheral(void)
       case RSI_APP_EVENT_PTS_SEQ_UPDATE: {
         rsi_ble_app_clear_event(RSI_APP_EVENT_PTS_SEQ_UPDATE);
 #if PERIODIC_ADV_EN
-        /* One push per tick; never stack increments (that skips seq on air). */
+        /* One logical push per tick; never stack seq (that skips values on air).
+         * On pkt-alloc fail: retry with fresh M, then brief backoff — PA keeps last AD. */
         if (g_pts_seq_busy == 0u) {
           uint32_t next_seq;
+          uint8_t attempt;
+
           g_pts_seq_busy = 1u;
-          next_seq       = g_pts_seq + 1u;
-          pts_master_build_payload(next_seq);
-          status = pts_master_push_periodic_data();
+
+          if (g_pts_push_backoff > 0u) {
+            g_pts_push_backoff--;
+            g_pts_seq_busy = 0u;
+            break;
+          }
+
+          next_seq = g_pts_seq + 1u;
+          status   = (int32_t)0xFFFFFFFF;
+          for (attempt = 0u; attempt < PTS_PUSH_RETRY_MAX; attempt++) {
+            pts_master_build_payload(next_seq);
+            status = pts_master_push_periodic_data();
+            if (status == RSI_SUCCESS) {
+              break;
+            }
+            if (pts_push_is_recoverable(status) && ((attempt + 1u) < PTS_PUSH_RETRY_MAX)) {
+              (void)osDelay(PTS_PUSH_RETRY_DELAY_MS);
+              continue;
+            }
+            break;
+          }
+
           if (status != RSI_SUCCESS) {
-            LOG_PRINT("PTS seq update failed 0x%lX next=%lu\n", status, (unsigned long)next_seq);
+            g_pts_push_fail++;
+            g_pts_push_fail_streak++;
+            if ((g_pts_push_fail_streak == 1u)
+                || ((g_pts_push_fail_streak % PTS_PUSH_FAIL_LOG_EVERY) == 0u)) {
+              LOG_PRINT("PTS seq update failed 0x%lX next=%lu streak=%lu\n",
+                        status,
+                        (unsigned long)next_seq,
+                        (unsigned long)g_pts_push_fail_streak);
+            }
+            /* Stop hammering NWP; last PA AD stays on air. */
+            if (pts_push_is_recoverable(status) || (g_pts_push_fail_streak >= 8u)) {
+              g_pts_push_backoff = (g_pts_push_fail_streak >= 8u) ? PTS_PUSH_BACKOFF_TICKS_HARD
+                                                                  : PTS_PUSH_BACKOFF_TICKS;
+              if (status == PTS_SAPI_RSP_TIMEOUT) {
+                (void)osDelay(20);
+              }
+            }
           } else {
-            g_pts_seq = next_seq;
+            g_pts_push_ok++;
+            if (g_pts_push_fail_streak > 0u) {
+              LOG_PRINT("PTS seq update recovered next=%lu after streak=%lu\n",
+                        (unsigned long)next_seq,
+                        (unsigned long)g_pts_push_fail_streak);
+            }
+            g_pts_push_fail_streak = 0u;
+            g_pts_push_backoff     = 0u;
+            g_pts_seq              = next_seq;
+            if (g_pts_payload_has_sched && (g_pts_cmd_repeats_left > 0u)) {
+              g_pts_cmd_repeats_left--;
+            }
             pts_master_commit_hist();
             pts_debug_gpio_toggle();
+            if ((PTS_AE_ADV_REFRESH_SEQ > 0u) && ((g_pts_seq % PTS_AE_ADV_REFRESH_SEQ) == 0u)) {
+              pts_master_ae_adv_refresh();
+            }
             if ((g_pts_seq % 200u) == 0u) {
               LOG_PRINT("PTS master seq=%lu M=%lu session=%lu push_ok=%lu fail=%lu\n",
                         (unsigned long)g_pts_seq,

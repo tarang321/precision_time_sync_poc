@@ -20,9 +20,11 @@ Both fire at exec_m
 ## Setup
 
 1. SSID/PSK in **master only**: `master_si917/config/sl_net_default_values.h`
+   (`YOUR_SSID` / `YOUR_PSK` placeholders — set real values before flash)
 2. iPhone hotspot: **Maximize Compatibility** (2.4 GHz)
 3. Flash both `.rps`. PC on same hotspot as master.
-4. RX: wait `q=locked`. Master: `PTS wifi IP …`
+4. RX: wait `q=locked` (BLE only — no Wi-Fi join). Master: `PTS wifi IP …`
+5. Host `OK` means queued; `ERR,queue_full` / `ERR,bad_type` means rejected.
 
 ## Host
 

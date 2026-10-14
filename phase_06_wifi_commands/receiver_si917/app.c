@@ -64,6 +64,34 @@
 #define PTS_RX_BOARD_ID 1
 #endif
 
+/* Idle wait (not forever): keep holdover poll + heartbeat alive when PA stops. */
+#ifndef PTS_RX_IDLE_WAIT_MS
+#define PTS_RX_IDLE_WAIT_MS 500u
+#endif
+#ifndef PTS_RX_HEARTBEAT_MS
+#define PTS_RX_HEARTBEAT_MS 10000u
+#endif
+/* Re-create PA sync if reports stop (covers missing SYNC_LOST). */
+#ifndef PTS_RX_SILENCE_RESYNC_MS
+#define PTS_RX_SILENCE_RESYNC_MS 5000u
+#endif
+#ifndef PTS_RX_RESYNC_COOLDOWN_MS
+#define PTS_RX_RESYNC_COOLDOWN_MS 3000u
+#endif
+/* After BLE cmd timeout 0x103, back off hard — NWP needs time. */
+#ifndef PTS_RX_TIMEOUT_COOLDOWN_MS
+#define PTS_RX_TIMEOUT_COOLDOWN_MS 20000u
+#endif
+/* Host wait for ESTBL while CREATE is pending. SyncInfo under Wi-Fi coex needs seconds. */
+#ifndef PTS_RX_CREATE_WAIT_MS
+#define PTS_RX_CREATE_WAIT_MS 8000u
+#endif
+/* Bounce scan only after this many timed-out creates (not every attempt). */
+#ifndef PTS_RX_REACQ_SCAN_BOUNCE_AFTER
+#define PTS_RX_REACQ_SCAN_BOUNCE_AFTER 2u
+#endif
+#define PTS_BLE_ERR_TIMEOUT 0x103
+
 //! Address type of the device to connect
 #define RSI_BLE_DEV_ADDR_TYPE LE_RANDOM_ADDRESS
 
@@ -146,6 +174,17 @@ static uint8_t g_pts_paired_valid[64];
 static uint16_t g_pts_paired_next;
 static uint8_t device_found          = 0;
 static uint8_t remote_dev_bd_addr[6] = { 0 };
+static uint8_t g_pts_pa_synced;
+static uint8_t g_pts_have_sync_handle;
+static uint16_t g_pts_sync_handle;
+static uint8_t g_pts_scan_kept_on; /* 1 = AE scan believed on */
+static uint8_t g_pts_reacq_no_estbl; /* timed-out creates without ESTBL */
+static uint8_t g_pts_create_pending; /* CREATE issued; wait ESTBL/timeout */
+static uint32_t g_pts_create_ticks;
+static uint32_t g_pts_last_rpt_ticks;
+static uint32_t g_pts_last_hb_ticks;
+static uint32_t g_pts_last_resync_ticks;
+static uint32_t g_pts_resync_cooldown_ms;
 
 static rsi_ble_event_enhance_conn_status_t rsi_app_enhanced_connected_device;
 static rsi_ble_event_conn_status_t rsi_app_connected_device;
@@ -154,6 +193,160 @@ static rsi_ble_ae_adv_report_t ble_app_ae_adv_report;
 
 osSemaphoreId_t ble_peripheral_conn_sem;
 osSemaphoreId_t ble_main_task_sem;
+
+static uint32_t pts_elapsed_ms(uint32_t then_ticks)
+{
+  uint32_t freq = osKernelGetSysTimerFreq();
+  uint32_t dt   = osKernelGetSysTimerCount() - then_ticks;
+  if (freq < 1000u) {
+    return dt;
+  }
+  return dt / (freq / 1000u);
+}
+
+#define PTS_BLE_ERR_CMD_DISALLOWED 0x4E0Cu
+
+static int32_t pts_rx_scan_enable(void)
+{
+  rsi_ble_ae_set_scan_enable_t ae_scan = { 0 };
+  int32_t status;
+
+  /* Already scanning — START again is 0x4E0C Command Disallowed. */
+  if (g_pts_scan_kept_on != 0u) {
+    return RSI_SUCCESS;
+  }
+
+  ae_scan.enable            = RSI_BLE_START_SCAN;
+  ae_scan.filter_duplicates = BLE_SCAN_ENABLE_FILTER_DUP;
+  ae_scan.duration          = BLE_SCAN_DUR;
+  ae_scan.period            = BLE_SCAN_PERIOD;
+  status                    = rsi_ble_ae_set_scan_enable(&ae_scan);
+  if ((status == RSI_SUCCESS) || ((uint32_t)status == PTS_BLE_ERR_CMD_DISALLOWED)) {
+    g_pts_scan_kept_on = 1u;
+    return RSI_SUCCESS;
+  }
+  if ((uint32_t)status == (uint32_t)PTS_BLE_ERR_TIMEOUT) {
+    g_pts_resync_cooldown_ms = PTS_RX_TIMEOUT_COOLDOWN_MS;
+  }
+  return status;
+}
+
+/** Stop→start AE scan so CREATE can hear master's AUX/SyncInfo again. */
+static int32_t pts_rx_scan_bounce(void)
+{
+  rsi_ble_ae_set_scan_enable_t ae_scan = { 0 };
+  int32_t status;
+
+  ae_scan.enable            = RSI_BLE_STOP_SCAN;
+  ae_scan.filter_duplicates = BLE_SCAN_ENABLE_FILTER_DUP;
+  ae_scan.duration          = BLE_SCAN_DUR;
+  ae_scan.period            = BLE_SCAN_PERIOD;
+  (void)rsi_ble_ae_set_scan_enable(&ae_scan);
+  g_pts_scan_kept_on = 0u;
+  (void)osDelay(20);
+  status = pts_rx_scan_enable();
+  return status;
+}
+
+/**
+ * After SYNC_LOST / silence: scan on → CREATE. Wait ESTBL up to PTS_RX_CREATE_WAIT_MS.
+ * Only CANCEL a timed-out pending CREATE (never CANCEL when idle — Command Disallowed
+ * on Si917 breaks the next CREATE). Never TERMINATE after LOST (handle already gone).
+ */
+static int32_t pts_rx_reacquire_periodic_sync(const char *why)
+{
+  rsi_ble_ae_set_periodic_adv_create_sync_t ae_sync = { 0 };
+  int32_t status;
+  uint8_t bounce = 0u;
+  uint8_t need_cancel = 0u;
+
+  g_pts_pa_synced = 0u;
+
+  /* Still waiting on a prior CREATE — leave it alone. */
+  if (g_pts_create_pending != 0u) {
+    uint32_t waited = pts_elapsed_ms(g_pts_create_ticks);
+    if (waited < PTS_RX_CREATE_WAIT_MS) {
+      return 0;
+    }
+    if (g_pts_reacq_no_estbl < 255u) {
+      g_pts_reacq_no_estbl++;
+    }
+    LOG_PRINT("RX%d reacq CREATE timeout %lums (%s) streak=%u\n",
+              PTS_RX_BOARD_ID,
+              (unsigned long)waited,
+              why,
+              (unsigned)g_pts_reacq_no_estbl);
+    g_pts_create_pending = 0u;
+    need_cancel          = 1u;
+  }
+
+  g_pts_last_resync_ticks  = osKernelGetSysTimerCount();
+  g_pts_resync_cooldown_ms = PTS_RX_CREATE_WAIT_MS;
+
+  rsi_ascii_dev_address_to_6bytes_rev((uint8_t *)ae_sync.adv_addr, (int8_t *)REM_ADDR);
+  ae_sync.adv_addr_type = LE_RANDOM_ADDRESS;
+  ae_sync.adv_sid       = PTS_MASTER_ADV_SID;
+  ae_sync.options       = BLE_AE_OPTIONS;
+  ae_sync.skip          = BLE_AE_ADV_SKIP;
+  ae_sync.sync_timeout  = BLE_AE_SYNC_TIMOUT;
+
+  if (need_cancel != 0u) {
+    (void)rsi_ble_ae_set_periodic_sync(BLE_AE_PER_SYNC_CANCEL, &ae_sync);
+    (void)osDelay(40);
+  }
+
+  /* Sync already gone on LOST — do not TERMINATE a dead handle. */
+  g_pts_have_sync_handle = 0u;
+
+  bounce = (g_pts_reacq_no_estbl >= PTS_RX_REACQ_SCAN_BOUNCE_AFTER) ? 1u : 0u;
+  if (bounce != 0u) {
+    status = pts_rx_scan_bounce();
+    if (status != RSI_SUCCESS) {
+      LOG_PRINT("RX%d reacq scan bounce failed 0x%lX (%s) streak=%u\n",
+                PTS_RX_BOARD_ID,
+                status,
+                why,
+                (unsigned)g_pts_reacq_no_estbl);
+      return status;
+    }
+    LOG_PRINT("RX%d reacq scan bounce (%s) streak=%u\n",
+              PTS_RX_BOARD_ID,
+              why,
+              (unsigned)g_pts_reacq_no_estbl);
+    (void)osDelay(50);
+  } else {
+    status = pts_rx_scan_enable();
+    if (status != RSI_SUCCESS) {
+      LOG_PRINT("RX%d reacq scan failed 0x%lX (%s)\n", PTS_RX_BOARD_ID, status, why);
+      return status;
+    }
+  }
+
+  /* Scan is on (or already was). CREATE must run even if START returned 0x4E0C. */
+  status = rsi_ble_ae_set_periodic_sync(BLE_AE_PER_SYNC_CREATE, &ae_sync);
+  if (status != RSI_SUCCESS) {
+    if ((uint32_t)status == (uint32_t)PTS_BLE_ERR_TIMEOUT) {
+      g_pts_resync_cooldown_ms = PTS_RX_TIMEOUT_COOLDOWN_MS;
+    }
+    g_pts_create_pending = 0u;
+    LOG_PRINT("RX%d reacq create_sync failed 0x%lX (%s) streak=%u\n",
+              PTS_RX_BOARD_ID,
+              status,
+              why,
+              (unsigned)g_pts_reacq_no_estbl);
+  } else {
+    g_pts_create_pending = 1u;
+    g_pts_create_ticks   = osKernelGetSysTimerCount();
+    g_pts_ae_seen        = 0u; /* next AE report proves SyncInfo path is alive */
+    LOG_PRINT("RX%d reacq create_sync pending ESTBL (%s) streak=%u bounce=%u wait_ms=%u\n",
+              PTS_RX_BOARD_ID,
+              why,
+              (unsigned)g_pts_reacq_no_estbl,
+              (unsigned)bounce,
+              (unsigned)PTS_RX_CREATE_WAIT_MS);
+  }
+  return status;
+}
 
 static const sl_wifi_device_configuration_t
   config = { .boot_option = LOAD_NWP_FW,
@@ -321,12 +514,17 @@ void rsi_ble_simple_central_on_ae_adv_report_event(uint16_t status, rsi_ble_ae_a
   }
 }
 
+static volatile uint16_t g_pts_estbl_status;
+
 void rsi_ble_simple_central_on_ae_periodic_adv_sync_estbl_event(uint16_t status,
                                                                 rsi_ble_per_adv_sync_estbl_t *ae_periodic_adv_sync)
 {
   /* No logging here — BLE callback context. Log in the main-loop event handler. */
-  UNUSED_PARAMETER(status);
-  UNUSED_PARAMETER(ae_periodic_adv_sync);
+  g_pts_estbl_status = status;
+  if ((status == 0u) && (ae_periodic_adv_sync != NULL)) {
+    g_pts_sync_handle      = ae_periodic_adv_sync->sync_handle;
+    g_pts_have_sync_handle = 1u;
+  }
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_PER_SYNC_ESTBL);
 }
 
@@ -365,18 +563,19 @@ void rsi_ble_simple_central_on_ae_periodic_adv_report_event(uint16_t status,
     g_pts_rpt_bad_status++;
   }
   if (ae_per_adv_report != NULL) {
-    uint32_t r_ticks = osKernelGetSysTimerCount();
     if (ae_per_adv_report->data_status != 0u) {
       g_pts_rpt_incomplete++;
+    } else {
+      uint32_t r_ticks = osKernelGetSysTimerCount();
+      pts_event_gpio_pulse();
+      (void)pts_rx_ring_push(&g_pts_rx_ring,
+                             ae_per_adv_report->data,
+                             ae_per_adv_report->data_len,
+                             ae_per_adv_report->RSSI,
+                             r_ticks,
+                             ae_per_adv_report->data_status,
+                             status);
     }
-    pts_event_gpio_pulse();
-    (void)pts_rx_ring_push(&g_pts_rx_ring,
-                           ae_per_adv_report->data,
-                           ae_per_adv_report->data_len,
-                           ae_per_adv_report->RSSI,
-                           r_ticks,
-                           ae_per_adv_report->data_status,
-                           status);
   }
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_PER_ADV_REPORT);
 }
@@ -386,6 +585,9 @@ void rsi_ble_simple_central_on_ae_periodic_adv_sync_lost_event(uint16_t status,
 {
   UNUSED_PARAMETER(status);
   UNUSED_PARAMETER(ae_per_sync_lost);
+  /* Handle is dead — TERMINATE would confuse NWP before CREATE. */
+  g_pts_have_sync_handle = 0u;
+  g_pts_pa_synced        = 0u;
   rsi_ble_app_set_event(RSI_APP_EVENT_AE_PER_ADV_SYNC_LOST);
 }
 
@@ -695,7 +897,17 @@ void ble_ae_central(void)
   pts_r_table_init(&g_pts_r_table);
   pts_network_time_init();
   pts_paired_reset();
-  g_pts_last_q = PTS_SYNC_UNLOCKED;
+  g_pts_last_q             = PTS_SYNC_UNLOCKED;
+  g_pts_pa_synced          = 0u;
+  g_pts_have_sync_handle   = 0u;
+  g_pts_scan_kept_on       = 1u; /* scan left on after first enable; ESTBL must not stop it */
+  g_pts_reacq_no_estbl     = 0u;
+  g_pts_create_pending     = 1u; /* boot CREATE above — wait ESTBL */
+  g_pts_create_ticks       = osKernelGetSysTimerCount();
+  g_pts_last_rpt_ticks     = g_pts_create_ticks;
+  g_pts_last_hb_ticks      = g_pts_create_ticks;
+  g_pts_last_resync_ticks  = 0u;
+  g_pts_resync_cooldown_ms = PTS_RX_CREATE_WAIT_MS;
   (void)pts_event_gpio_init();
   (void)pts_schedule_gpio_init();
   LOG_PRINT("PTS Phase6 RX%d: BLE sync + BLE PTS6 schedule (no Wi-Fi)\n", PTS_RX_BOARD_ID);
@@ -831,9 +1043,32 @@ void ble_ae_central(void)
                 (unsigned long)g_pts_miss_count);
     }
 
+    /* Silence / heartbeat while PA is quiet — do not sleep forever. */
+    {
+      uint32_t silence_ms = pts_elapsed_ms(g_pts_last_rpt_ticks);
+      uint32_t since_hb   = pts_elapsed_ms(g_pts_last_hb_ticks);
+      uint32_t since_rs   = pts_elapsed_ms(g_pts_last_resync_ticks);
+
+      if ((silence_ms >= PTS_RX_SILENCE_RESYNC_MS) && (since_rs >= g_pts_resync_cooldown_ms)) {
+        LOG_PRINT("RX%d PA silence %lums — reacquire\n",
+                  PTS_RX_BOARD_ID,
+                  (unsigned long)silence_ms);
+        (void)pts_rx_reacquire_periodic_sync("silence");
+      } else if ((since_hb >= PTS_RX_HEARTBEAT_MS) && (silence_ms >= 1000u)) {
+        g_pts_last_hb_ticks = osKernelGetSysTimerCount();
+        LOG_PRINT("RX%d alive q=%s seq=%lu pa=%u silence_ms=%lu Rdrop=%lu\n",
+                  PTS_RX_BOARD_ID,
+                  pts_network_time_quality_name(q),
+                  (unsigned long)g_pts_last_seq,
+                  (unsigned)g_pts_pa_synced,
+                  (unsigned long)silence_ms,
+                  (unsigned long)g_pts_rx_ring.drops);
+      }
+    }
+
     temp_event_map = rsi_ble_app_get_event();
     if (temp_event_map == RSI_FAILURE) {
-      osSemaphoreAcquire(ble_main_task_sem, osWaitForever);
+      (void)osSemaphoreAcquire(ble_main_task_sem, PTS_RX_IDLE_WAIT_MS);
       continue;
     }
 
@@ -852,27 +1087,26 @@ void ble_ae_central(void)
       } break;
 
       case RSI_APP_EVENT_AE_PER_SYNC_ESTBL: {
-        LOG_PRINT("RX%d Periodic sync established\n", PTS_RX_BOARD_ID);
-        /* Stop AE scan — free RX radio for the PA train. */
-        {
-          rsi_ble_ae_set_scan_enable_t ae_scan_off = { 0 };
-          ae_scan_off.enable                       = RSI_BLE_STOP_SCAN;
-          ae_scan_off.filter_duplicates            = BLE_SCAN_ENABLE_FILTER_DUP;
-          ae_scan_off.duration                     = 0;
-          ae_scan_off.period                       = 0;
-          status                                   = rsi_ble_ae_set_scan_enable(&ae_scan_off);
-          if (status != RSI_SUCCESS) {
-            LOG_PRINT("RX%d stop AE scan failed 0x%lX\n", PTS_RX_BOARD_ID, status);
-          } else {
-            LOG_PRINT("RX%d AE scan stopped (PA sync only)\n", PTS_RX_BOARD_ID);
-          }
-        }
-#if BLE_AE_PERIODIC_SYNC_TERMIN
-        rsi_ble_ae_set_periodic_adv_terminate_sync_t ae_per_sync_terminate = { 0 };
-        ae_per_sync_terminate.sync_handle                                  = BLE_AE_ADV_SID;
-        status = rsi_ble_ae_set_periodic_sync(BLE_AE_PER_SYNC_TERMINATE, &ae_per_sync_terminate);
-#endif
         rsi_ble_app_clear_event(RSI_APP_EVENT_AE_PER_SYNC_ESTBL);
+        if (g_pts_estbl_status != 0u) {
+          g_pts_create_pending = 0u;
+          LOG_PRINT("RX%d Periodic sync ESTBL fail status=0x%X streak=%u\n",
+                    PTS_RX_BOARD_ID,
+                    (unsigned)g_pts_estbl_status,
+                    (unsigned)g_pts_reacq_no_estbl);
+          break;
+        }
+        g_pts_pa_synced          = 1u;
+        g_pts_scan_kept_on       = 1u;
+        g_pts_create_pending     = 0u;
+        g_pts_reacq_no_estbl     = 0u;
+        g_pts_resync_cooldown_ms = PTS_RX_RESYNC_COOLDOWN_MS;
+        g_pts_last_rpt_ticks     = osKernelGetSysTimerCount();
+        g_pts_last_hb_ticks      = g_pts_last_rpt_ticks;
+        /* Keep AE scan ON — stopping it made reacq scan enable time out (0x103). */
+        LOG_PRINT("RX%d Periodic sync established handle=%u (scan kept on)\n",
+                  PTS_RX_BOARD_ID,
+                  (unsigned)g_pts_sync_handle);
       } break;
 
       case RSI_APP_EVENT_AE_PER_ADV_REPORT: {
@@ -909,6 +1143,7 @@ void ble_ae_central(void)
                 g_pts_pairs      = 0u;
                 g_pts_fit_ok     = 0u;
                 pts_paired_reset();
+                pts_schedule_gpio_reset();
                 LOG_PRINT("RX%d session %lu->%lu unlocked (reboot gate)\n",
                           PTS_RX_BOARD_ID,
                           (unsigned long)prev_session,
@@ -916,6 +1151,8 @@ void ble_ae_central(void)
               }
             }
             pts_network_time_note_rx(slot.r_ticks);
+            g_pts_last_rpt_ticks = slot.r_ticks;
+            g_pts_pa_synced      = 1u;
 
             if (g_pts_have_seq) {
               if (seq == g_pts_last_seq) {
@@ -981,9 +1218,9 @@ void ble_ae_central(void)
                                    &st,
                                    &exec_m)
                   == 0) {
+                /* Schedule only when locked — holdover may drift. */
                 if ((st == PTS_SCHED_STATUS_VALID)
-                    && ((pts_network_time_quality() == PTS_SYNC_LOCKED)
-                        || (pts_network_time_quality() == PTS_SYNC_HOLDOVER))) {
+                    && (pts_network_time_quality() == PTS_SYNC_LOCKED)) {
                   (void)pts_schedule_gpio_arm(cmd_id, cmd_type, exec_m);
                 }
               }
@@ -1022,11 +1259,12 @@ void ble_ae_central(void)
       } break;
 
       case RSI_APP_EVENT_AE_PER_ADV_SYNC_LOST: {
-        /* Outage gate: model should already be holdover via poll; keep net valid. */
-        LOG_PRINT("RX%d Periodic sync LOST q=%s (holdover gate)\n",
+        /* Holdover keeps net; must re-scan + create_sync or RX stays dark forever. */
+        LOG_PRINT("RX%d Periodic sync LOST q=%s (holdover + reacq)\n",
                   PTS_RX_BOARD_ID,
                   pts_network_time_quality_name(pts_network_time_quality()));
         rsi_ble_app_clear_event(RSI_APP_EVENT_AE_PER_ADV_SYNC_LOST);
+        (void)pts_rx_reacquire_periodic_sync("sync_lost");
       } break;
 
       case RSI_APP_EVENT_AE_SCAN_TIMEOUT: {

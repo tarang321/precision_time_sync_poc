@@ -7,10 +7,10 @@
  *   ON[,<lead_ms>]
  *   OFF[,<lead_ms>]
  *   SCHED,<cmd_id>,<cmd_type>,<lead_ms>   (type 2=ON 3=OFF)
- *     -> OK,<cmd_id>,<exec_m>
+ *     -> OK,<cmd_id>,<exec_m>   (queued for BLE arm/fanout)
+ *     -> ERR,<reason>           (rejected; not queued)
  *
- * Host/master -> RX :5006
- *   PTS6,<cmd_id>,<cmd_type>,<exec_m>,0
+ * Schedule to RX is BLE PTS6 only (UDP :5006 not used).
  */
 #ifndef PTS_WIFI_CMD_PROTOCOL_H
 #define PTS_WIFI_CMD_PROTOCOL_H
@@ -42,6 +42,14 @@ static inline int pts_wifi_format_ok(char *out, size_t out_len, uint32_t cmd_id,
     return -1;
   }
   return snprintf(out, out_len, "OK,%lu,%lu\n", (unsigned long)cmd_id, (unsigned long)exec_m);
+}
+
+static inline int pts_wifi_format_err(char *out, size_t out_len, const char *reason)
+{
+  if ((out == NULL) || (out_len < 8u) || (reason == NULL)) {
+    return -1;
+  }
+  return snprintf(out, out_len, "ERR,%s\n", reason);
 }
 
 static inline int pts_wifi_format_pts6(char *out, size_t out_len,
@@ -103,6 +111,9 @@ static inline int pts_wifi_parse_sched(const char *line,
   if (sscanf(line, "SCHED,%lu,%u,%lu", &cid, &ctype, &lead) != 3) {
     return -1;
   }
+  if ((ctype != PTS_SCHED_TYPE_GPIO_ON) && (ctype != PTS_SCHED_TYPE_GPIO_OFF)) {
+    return -1;
+  }
   *cmd_id   = (uint32_t)cid;
   *cmd_type = (uint8_t)ctype;
   *lead_ms  = (uint32_t)lead;
@@ -151,7 +162,10 @@ static inline int pts_wifi_is_time_req(const char *line)
   while ((*line == ' ') || (*line == '\t')) {
     line++;
   }
-  return (strncmp(line, "TIME", 4) == 0) ? 1 : 0;
+  if (strncmp(line, "TIME", 4) != 0) {
+    return 0;
+  }
+  return ((line[4] == '\0') || (line[4] == ',') || isspace((unsigned char)line[4])) ? 1 : 0;
 }
 
 #endif /* PTS_WIFI_CMD_PROTOCOL_H */

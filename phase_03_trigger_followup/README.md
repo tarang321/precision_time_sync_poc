@@ -38,7 +38,7 @@ LA / visual: master LED0 vs RX LED0 (`ULP_GPIO_2`). Optional LA on same pin if p
 ## Exit criteria
 
 - [ ] Master log: `PTS master seq=… M=…`
-- [ ] RX pulses GPIO6 per report and stores first `R[N]` only
+- [ ] RX toggles LED0 (`ULP_GPIO_2`) per report and stores first `R[N]` only
 - [ ] RX log: `M[N]<->R[N] seq=… M=… R=…`
 - [ ] `R` is trigger-callback sample, not follow-up arrival time
 

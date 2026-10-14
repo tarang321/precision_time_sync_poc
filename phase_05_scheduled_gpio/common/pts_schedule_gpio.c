@@ -5,11 +5,11 @@
  * Master push-time M vs RX air-time R: to_local() embeds that bias.
  * Master adds PTS_SCHED_MASTER_COMP_MS so LED1 matches RX (LA-tuned;
  * full PA=30 ms overshot to ~23 ms → use 7 ms).
+ * Arm/poll share state under osKernelLock.
  */
 #include "pts_schedule_gpio.h"
 #include "pts_network_time.h"
 #include "pts_schedule_protocol.h"
-#include "pts_sync_protocol.h"
 #include "sl_si91x_driver_gpio.h"
 #include "sl_gpio_board.h"
 #include "cmsis_os2.h"
@@ -17,11 +17,9 @@
 #ifndef PTS_SCHED_BUSY_LEAD_MS
 #define PTS_SCHED_BUSY_LEAD_MS 2u
 #endif
-/* Visible ON time after sync edge (active-low LED: low = lit). */
 #ifndef PTS_SCHED_PULSE_MS
 #define PTS_SCHED_PULSE_MS 80u
 #endif
-/* Master-only: delay local fire vs advertised exec_m (push→air trim). */
 #ifndef PTS_SCHED_MASTER_COMP_MS
 #define PTS_SCHED_MASTER_COMP_MS 7u
 #endif
@@ -48,18 +46,14 @@ static uint32_t s_exec_m;
 static uint8_t s_fire_pending;
 static uint32_t s_fire_cmd;
 
-/**
- * Sync edge = falling (both boards). Hold low PTS_SCHED_PULSE_MS so LED1
- * is visibly ON (active-low), then return idle high.
- */
 static void led1_fire_pulse(void)
 {
   if (!s_led1_ready) {
     return;
   }
-  (void)sl_gpio_driver_clear_pin(&s_led1.port_pin); /* falling edge = fire / LED on */
+  (void)sl_gpio_driver_clear_pin(&s_led1.port_pin);
   (void)osDelay(PTS_SCHED_PULSE_MS);
-  (void)sl_gpio_driver_set_pin(&s_led1.port_pin); /* idle / LED off */
+  (void)sl_gpio_driver_set_pin(&s_led1.port_pin);
 }
 
 static const osThreadAttr_t s_sched_attr = {
@@ -97,7 +91,6 @@ int pts_schedule_gpio_init(void)
   if (status != SL_STATUS_OK) {
     return -1;
   }
-  /* Idle high — both boards same resting state (active-low LED = off). */
   (void)sl_gpio_driver_set_pin(&s_led1.port_pin);
   s_led1_ready = 1u;
 
@@ -107,12 +100,24 @@ int pts_schedule_gpio_init(void)
   return 0;
 }
 
+void pts_schedule_gpio_reset(void)
+{
+  (void)osKernelLock();
+  s_armed         = 0u;
+  s_have_last_cmd = 0u;
+  s_last_cmd_id   = 0u;
+  (void)osKernelUnlock();
+}
+
 static int arm_common(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m, uint32_t r_target)
 {
   if (cmd_type != PTS_SCHED_TYPE_GPIO_TOGGLE) {
     return -1;
   }
+
+  (void)osKernelLock();
   if (s_have_last_cmd && (cmd_id == s_last_cmd_id)) {
+    (void)osKernelUnlock();
     return 1;
   }
   s_cmd_id        = cmd_id;
@@ -121,6 +126,7 @@ static int arm_common(uint32_t cmd_id, uint8_t cmd_type, uint32_t exec_m, uint32
   s_armed         = 1u;
   s_last_cmd_id   = cmd_id;
   s_have_last_cmd = 1u;
+  (void)osKernelUnlock();
   return 0;
 }
 
@@ -143,16 +149,28 @@ int pts_schedule_gpio_arm_local(uint32_t cmd_id, uint8_t cmd_type, uint32_t loca
 
 int pts_schedule_gpio_take_fire(uint32_t *cmd_id_out, uint32_t *exec_m_out)
 {
-  if (!s_fire_pending) {
+  uint8_t pending;
+  uint32_t fire_cmd;
+  uint32_t exec_m;
+
+  (void)osKernelLock();
+  pending  = s_fire_pending;
+  fire_cmd = s_fire_cmd;
+  exec_m   = s_exec_m;
+  if (pending) {
+    s_fire_pending = 0u;
+  }
+  (void)osKernelUnlock();
+
+  if (!pending) {
     return 0;
   }
   if (cmd_id_out != NULL) {
-    *cmd_id_out = s_fire_cmd;
+    *cmd_id_out = fire_cmd;
   }
   if (exec_m_out != NULL) {
-    *exec_m_out = s_exec_m;
+    *exec_m_out = exec_m;
   }
-  s_fire_pending = 0u;
   return 1;
 }
 
@@ -162,18 +180,29 @@ void pts_schedule_gpio_poll(void)
   uint32_t left;
   uint32_t freq;
   uint32_t busy_lead;
+  uint32_t r_target;
+  uint8_t armed;
 
-  if (!s_armed) {
+  (void)osKernelLock();
+  armed    = s_armed;
+  r_target = s_r_target;
+  (void)osKernelUnlock();
+
+  if (!armed) {
     return;
   }
 
   now  = osKernelGetSysTimerCount();
-  left = (uint32_t)(s_r_target - now);
+  left = (uint32_t)(r_target - now);
   if (left > 0x80000000u) {
     led1_fire_pulse();
-    s_fire_cmd     = s_cmd_id;
-    s_fire_pending = 1u;
-    s_armed        = 0u;
+    (void)osKernelLock();
+    if (s_armed && (s_r_target == r_target)) {
+      s_fire_cmd     = s_cmd_id;
+      s_fire_pending = 1u;
+      s_armed        = 0u;
+    }
+    (void)osKernelUnlock();
     return;
   }
 
@@ -187,17 +216,21 @@ void pts_schedule_gpio_poll(void)
     uint32_t sleep_ms = ((left - busy_lead) / (freq / 1000u));
     if (sleep_ms > 1u) {
       if (sleep_ms > 20u) {
-        sleep_ms = 20u; /* tighter re-check near deadline */
+        sleep_ms = 20u;
       }
       (void)osDelay(sleep_ms);
       return;
     }
   }
 
-  while ((int32_t)(osKernelGetSysTimerCount() - s_r_target) < 0) {
+  while ((int32_t)(osKernelGetSysTimerCount() - r_target) < 0) {
   }
   led1_fire_pulse();
-  s_fire_cmd     = s_cmd_id;
-  s_fire_pending = 1u;
-  s_armed        = 0u;
+  (void)osKernelLock();
+  if (s_armed && (s_r_target == r_target)) {
+    s_fire_cmd     = s_cmd_id;
+    s_fire_pending = 1u;
+    s_armed        = 0u;
+  }
+  (void)osKernelUnlock();
 }

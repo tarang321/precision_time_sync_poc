@@ -33,7 +33,6 @@ static uint32_t s_rate_m0;
 static uint32_t s_rate_r0;
 static uint32_t s_rate_seq0;
 static uint32_t s_last_seq;
-static uint32_t s_last_pair_r;
 static uint32_t s_last_rx_r;
 static int64_t s_last_dr;
 static int64_t s_rate_num;
@@ -83,7 +82,6 @@ static void slide_offset(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
   s_offset_m    = m_ticks;
   s_offset_r    = r_ticks;
   s_last_seq    = seq;
-  s_last_pair_r = r_ticks;
   s_last_rx_r   = r_ticks;
 }
 
@@ -105,7 +103,6 @@ void pts_network_time_init(void)
   s_rate_r0      = 0u;
   s_rate_seq0    = 0u;
   s_last_seq     = 0u;
-  s_last_pair_r  = 0u;
   s_last_rx_r    = 0u;
 }
 
@@ -203,8 +200,6 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
         s_rejects++;
         if (dseq >= PTS_NT_GAP_SLIDE) {
           slide_offset(seq, m_ticks, r_ticks);
-          set_quality(PTS_SYNC_LOCKED);
-          return 0;
         }
         return -1;
       }
@@ -227,8 +222,6 @@ int pts_network_time_add_pair(uint32_t seq, uint32_t m_ticks, uint32_t r_ticks)
         s_rejects++;
         if (dseq >= PTS_NT_GAP_SLIDE) {
           slide_offset(seq, m_ticks, r_ticks);
-          set_quality(PTS_SYNC_LOCKED);
-          return 0;
         }
         return -1;
       }

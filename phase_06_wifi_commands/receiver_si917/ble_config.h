@@ -61,7 +61,8 @@
 #define RSI_BLE_ADV_DIR_ADDR      "00:15:83:6A:64:17"
 #define BLE_AE_ADV_SID            0x00
 #define BLE_AE_ADV_SKIP           0x00
-#define BLE_AE_SYNC_TIMOUT        0x30
+/* 10 ms units. Was 0x30 (480 ms) — Wi-Fi coex gaps on master trip SYNC_LOST. */
+#define BLE_AE_SYNC_TIMOUT        0xC0
 
 #define RSI_BLE_ADV_INT_MIN     0x100
 #define RSI_BLE_ADV_INT_MAX     0x200
@@ -141,10 +142,11 @@
 /*=======================================================================*/
 #define INITIATING_PHYS (PHY_1M | PHY_2M | PHY_LE_CODED)
 
+/* Continuous AE scan (window=interval) — create_sync needs SyncInfo on air. */
 #define LE_SCAN_INTERVAL         0x100
-#define LE_SCAN_WINDOW           0x50
+#define LE_SCAN_WINDOW           0x100
 #define SEC_PHY_LE_SCAN_INTERVAL 0x100
-#define SEC_PHY_LE_SCAN_WINDOW   0x50
+#define SEC_PHY_LE_SCAN_WINDOW   0x100
 
 #define CONNECTION_INTERVAL_MIN 0x00A0
 #define CONNECTION_INTERVAL_MAX 0x00A0
@@ -160,9 +162,10 @@
 //! Scan command parameters
 /*=======================================================================*/
 
-#define RSI_BLE_SCAN_TYPE        SCAN_TYPE_ACTIVE
-#define PRI_PHY_BLE_SCAN_TYPE    SCAN_TYPE_ACTIVE
-#define SEC_PHY_BLE_SCAN_TYPE    SCAN_TYPE_ACTIVE
+/* Passive: master AE is non-scannable; active SCAN_REQ does not help SyncInfo. */
+#define RSI_BLE_SCAN_TYPE        SCAN_TYPE_PASSIVE
+#define PRI_PHY_BLE_SCAN_TYPE    SCAN_TYPE_PASSIVE
+#define SEC_PHY_BLE_SCAN_TYPE    SCAN_TYPE_PASSIVE
 #define RSI_BLE_SCAN_FILTER_TYPE SCAN_FILTER_TYPE_ALL
 
 //!Scan status

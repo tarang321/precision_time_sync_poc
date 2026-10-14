@@ -13,6 +13,9 @@ extern "C" {
 
 int pts_schedule_gpio_init(void);
 
+/** Clear armed state + cmd_id dedupe (call on master session change). */
+void pts_schedule_gpio_reset(void);
+
 /**
  * Arm one-shot at network time exec_m (RX: convert M→R via clock model).
  * Same cmd_id is ignored. Returns 0 armed, 1 duplicate, -1 fail.
