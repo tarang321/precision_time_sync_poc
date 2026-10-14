@@ -15,8 +15,6 @@ phase_01_ble_transport/
   receiver_1_si917/          # active receiver
     pts_receiver_1_si917_soc.slcp
     app.c  ble_config.h  app.h  README.md
-  receiver_2_si917/          # parked — not required for 1M+1RX
-    pts_receiver_2_si917_soc.slcp
 ```
 
 ## Dependencies (active `.slcp` files)

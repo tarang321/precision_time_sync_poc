@@ -1,4 +1,0 @@
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/bg24_capture/cmake_gcc/build/CMakeFiles/slc.dir
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/bg24_capture/cmake_gcc/build/CMakeFiles/pts_bg24_followup.dir
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/bg24_capture/cmake_gcc/build/CMakeFiles/edit_cache.dir
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_03_trigger_followup/bg24_capture/cmake_gcc/build/CMakeFiles/rebuild_cache.dir

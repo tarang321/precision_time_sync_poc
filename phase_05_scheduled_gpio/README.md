@@ -35,8 +35,6 @@ Master appends PTS6 for 4 PA events per command, every ~25 packets (~750 ms at 3
 | Master | `master_si917/pts_master_si917_p5.slcp` | `.rps` |
 | Receiver | `receiver_si917/pts_receiver_si917_p5.slcp` | `.rps` |
 
-**Parked:** `bg24_capture/`.
-
 LA: probe RX LED0 (BT) + LED1 (schedule). Optionally master LED0. Common GND.
 
 ## Exit criteria

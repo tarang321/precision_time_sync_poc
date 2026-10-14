@@ -32,7 +32,7 @@ Magic `PTS5`, 33 bytes. Trigger seq N + session + M[N-1]..M[N-4] + valid_mask. A
 | Master | `master_si917/pts_master_si917_p4.slcp` | `.rps` |
 | Receiver | `receiver_si917/pts_receiver_si917_p4.slcp` | `.rps` |
 
-**Parked:** `bg24_capture/` (model lives on RX Si917: `common/pts_network_time.*`).
+Model lives on RX Si917: `common/pts_network_time.*`.
 
 ## Air / seq pacing
 

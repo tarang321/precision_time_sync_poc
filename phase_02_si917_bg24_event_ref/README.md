@@ -11,8 +11,6 @@
 | Master | `phase_01_ble_transport/master_si917/` (reuse) |
 | Receiver | `receiver_si917/pts_receiver_si917_p2.slcp` |
 
-**Parked:** `bg24_capture/` (original PRS/TIMER path — not used).
-
 ## Behavior (Si917-only)
 
 ```text

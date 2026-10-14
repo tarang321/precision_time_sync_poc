@@ -10,7 +10,7 @@ POC for BLE time sync on **SiWG917 SoC only**, under current board constraints.
 - Future-timestamp-based command execution on the receiver GPIO
 
 **Topology (all phases):** **1× Si917 SoC master + 1× Si917 SoC receiver.**  
-No BG24. In-tree `bg24_capture/` trees are **parked** (not required). Multi-RX is out of scope (`receiver_2_si917/` parked).
+No BG24. Multi-RX is out of scope.
 
 **Trade-off:** Without BG24 PRS/TIMER capture, `R[N]` is sampled in the AE report callback (`osKernelGetSysTimerCount()` or equivalent). Fixed offsets can be calibrated; callback jitter cannot. LA on master GPIO6 vs RX GPIO6 (and later RX schedule GPIO) is ground truth.
 

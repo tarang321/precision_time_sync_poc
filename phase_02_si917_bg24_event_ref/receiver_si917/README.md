@@ -4,7 +4,7 @@
 
 **GPIO sanity (opt-in):** set `PTS_GPIO_SANITY_TOGGLE=1` in `pts_event_gpio.h` → free-run ~2 Hz on LED0, BLE off. Default is `0` (AE path).
 
-**Topology:** Phase 1 master + this receiver. Do not flash `bg24_capture/`.
+**Topology:** Phase 1 master + this receiver.
 
 ## Behavior
 

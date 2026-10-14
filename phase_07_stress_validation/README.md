@@ -62,4 +62,4 @@ LA: master LED1 vs RX LED1. Fill `skew_us` in the CSV after capture.
 
 ## Wiring / flash
 
-Phase 6 Si917 only. See [phase_06_wifi_commands/README.md](../phase_06_wifi_commands/README.md). Do not flash parked `bg24_capture/`.
+Phase 6 Si917 only. See [phase_06_wifi_commands/README.md](../phase_06_wifi_commands/README.md).

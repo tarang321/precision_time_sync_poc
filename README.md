@@ -9,7 +9,7 @@ Phase-first BLE time-sync POC. Design: [BLE_Time_Synchronization_POC_Roadmap(2).
 | **1× Si917 SoC** | Master (Periodic Adv + optional Wi-Fi stamp) |
 | **1× Si917 SoC** | Receiver (sync, `R[N]`, network time, scheduled GPIO) |
 
-**No BG24.** All `bg24_capture/` trees are parked. Phase 1 `receiver_2_si917/` is parked.
+**No BG24.** Si917 master + Si917 RX only.
 
 **Trade-off:** `R[N]` and schedule live on the RX Si917 callback/timer path — no PRS hardware capture.
 
@@ -27,7 +27,7 @@ Flash NWP from the **same** WiSeConnect 4.1.1 package.
 ```text
 precision_time_sync_poc/
   phase_01_ble_transport/          # 1M + 1RX Periodic Adv + GPIO baseline
-  phase_02_si917_bg24_event_ref/   # RX local R[N] (bg24_capture/ parked)
+  phase_02_si917_bg24_event_ref/   # RX local R[N]
   phase_03_trigger_followup/       # M[N] ↔ R[N] on RX
   phase_04_logical_network_time/   # Network time on RX Si917
   phase_05_scheduled_gpio/         # Scheduled GPIO on RX
@@ -69,7 +69,7 @@ Base: [ble_ae_peripheral](https://github.com/SiliconLabs/wiseconnect/tree/master
 
 ## Phases 2–7
 
-Same boards. Receiver owns time model and schedule. Open each phase README. Parked `bg24_capture/` is not flashed.
+Same boards. Receiver owns time model and schedule. Open each phase README.
 
 **Phase 2 flash:** keep Phase 1 master; flash `phase_02_si917_bg24_event_ref/receiver_si917` only.  
 **Phase 3 flash:** both `phase_03_trigger_followup/{master,receiver}_si917` (PTS3 payload; no BG24).

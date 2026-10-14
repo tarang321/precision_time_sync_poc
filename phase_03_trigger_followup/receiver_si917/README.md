@@ -8,4 +8,4 @@
 2. Open `pts_receiver_si917_p3.slcp` → Generate → Build → Flash `.rps`.
 3. Expect: `M[N]<->R[N] seq=… M=… R=… pairs=…`
 
-Do **not** flash `bg24_capture/` or use soft-UART host TX.
+No soft-UART host TX.

@@ -1,4 +1,0 @@
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_01_ble_transport/receiver_2_si917/cmake_gcc/build/CMakeFiles/slc.dir
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_01_ble_transport/receiver_2_si917/cmake_gcc/build/CMakeFiles/pts_receiver_2_si917_soc.dir
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_01_ble_transport/receiver_2_si917/cmake_gcc/build/CMakeFiles/edit_cache.dir
-C:/Users/tasrivas/SimplicityStudio/v6_workspace/precision_time_sync_poc/phase_01_ble_transport/receiver_2_si917/cmake_gcc/build/CMakeFiles/rebuild_cache.dir

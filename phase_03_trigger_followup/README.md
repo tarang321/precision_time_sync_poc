@@ -26,7 +26,7 @@ Follow-up:     later packet carries fu_seq=N and M[N]
 | Master | `master_si917/pts_master_si917_p3.slcp` | `.rps` |
 | Receiver | `receiver_si917/pts_receiver_si917_p3.slcp` | `.rps` |
 
-**Parked:** `bg24_capture/` (no soft-UART / host TX). Pairing is on the RX VCOM.
+Pairing is on the RX VCOM.
 
 LA / visual: master LED0 vs RX LED0 (`ULP_GPIO_2`). Optional LA on same pin if probed.
 
